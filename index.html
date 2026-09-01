@@ -452,6 +452,7 @@ main{flex:1;overflow-y:auto;}
             <br>
             رمز الزبون: <b style="font-family:'IBM Plex Mono',monospace;color:var(--text);" id="dMeterNum"></b>
             &nbsp;|&nbsp; الهاتف: <span id="dPhone">—</span>
+            <button type="button" onclick="editCustomerPhone()" style="margin-right:6px;padding:3px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--blue);cursor:pointer;font-size:11px;">✏️ إضافة/تعديل</button>
             <br>
             📍 العنوان: <span id="dAddress"></span>
           </div>
@@ -553,7 +554,8 @@ main{flex:1;overflow-y:auto;}
   <div class="manage-section">
     <div class="manage-card">
       <h3>📋 معلومات الجولة</h3>
-      <div class="field"><label>رقم الجولة</label><input id="mRouteNum" type="text" placeholder="مثال: T34299" value="T00001"></div>
+      <div class="field"><label>رقم الجولة</label><input id="mRouteNum" type="text" placeholder="مثال: T216 أو 216" value="T00001"></div>
+      <div class="field"><label>الثلاثي</label><select id="mTriplet"><option value="1">الثلاثي الأول (R1T)</option><option value="2">الثلاثي الثاني (R2T)</option><option value="3">الثلاثي الثالث (R3T)</option></select></div>
       <div class="field"><label>اسم العامل / القارئ</label><input id="mWorkerName" type="text" placeholder="الاسم الكامل"></div>
       <button class="btn-prim" onclick="saveRouteInfo()" style="width:100%;padding:12px;">حفظ المعلومات</button>
     </div>
@@ -585,10 +587,10 @@ main{flex:1;overflow-y:auto;}
     <div class="manage-card">
       <h3>📤 تصدير النتائج</h3>
       <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;">
-        بعد ما تكمّل الجولة (القراءات الجديدة + الصور + الملاحظات)، صدّر كل شيء بضغطة وحدة.
+        بعد ما تكمّل الجولة (القراءات الجديدة + الصور + الملاحظات)، صدّر كل شيء. اسم الملف يكون مثل R2T216، ويحفظ داخل مجلد cliente ADE ثم داخل مجلد الجولة، مثلاً: cliente ADE/R2T216/R2T216.txt و R2T216.zip.
       </p>
-      <button class="btn-prim" onclick="exportTXT()" style="width:100%;padding:12px;margin-bottom:8px;">تصدير ملف txt (الأرقام والملاحظات)</button>
-      <button class="btn-ghost" onclick="exportResultsZip()" style="width:100%;padding:12px;">تصدير ZIP (Excel + الصور)</button>
+      <button class="btn-prim" onclick="exportTXT()" style="width:100%;padding:12px;margin-bottom:8px;">تصدير TXT للجولة</button>
+      <button class="btn-ghost" onclick="exportResultsZip()" style="width:100%;padding:12px;">تصدير ZIP للجولة</button>
     </div>
     <div class="manage-card">
       <h3>💾 نسخة احتياطية كاملة</h3>
@@ -668,7 +670,7 @@ const LOW_READING_REASONS = [
 ];
 
 let meters = [];
-let settings = { price: 25, currency: 'دج', routeNum: 'T00001', worker: '' };
+let settings = { price: 25, currency: 'دج', routeNum: 'T00001', worker: '', triplet: '1' };
 let currentMeterId = null;
 let currentTab = 'tab-all';
 let selectedAnnots = [];
@@ -739,6 +741,7 @@ async function loadData(){
   }catch(e){}
   const s = await sg('settings'); if(s){ settings=Object.assign(settings, JSON.parse(s)); }
   document.getElementById('mRouteNum').value = settings.routeNum;
+  document.getElementById('mTriplet').value = String(settings.triplet||'1');
   document.getElementById('mWorkerName').value = settings.worker||'';
   document.getElementById('mPrice').value = settings.price;
   document.getElementById('mCurrency').value = settings.currency;
@@ -936,6 +939,25 @@ async function commitMeterSerial(val){
   m.meterSerial = (val||'').trim();
   await saveMeters();
   renderMeterSerialDisplay(m);
+}
+
+function editCustomerPhone(){
+  const m = meters.find(x=>x.id===currentMeterId);
+  if(!m) return;
+  const el = document.getElementById('dPhone');
+  if(!el) return;
+  el.innerHTML = `<input id="phoneQuickInput" type="tel" value="${escH(m.phone||'')}" placeholder="05xxxxxxxx" style="width:125px;border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:12px;direction:ltr;text-align:right;"> <button type="button" onclick="commitCustomerPhone()" style="padding:3px 7px;border:1px solid var(--blue);border-radius:6px;background:var(--blue);color:#fff;cursor:pointer;font-size:11px;">حفظ</button>`;
+  const input=document.getElementById('phoneQuickInput');
+  if(input){ input.focus(); input.select(); input.onkeydown=(e)=>{ if(e.key==='Enter') commitCustomerPhone(); }; }
+}
+async function commitCustomerPhone(){
+  const m = meters.find(x=>x.id===currentMeterId);
+  const input = document.getElementById('phoneQuickInput');
+  if(!m || !input) return;
+  m.phone = input.value.trim();
+  await saveMeters();
+  document.getElementById('dPhone').textContent = m.phone || '—';
+  toast(m.phone ? 'تم حفظ هاتف الزبون' : 'تم حذف هاتف الزبون');
 }
 
 function openMeter(id){
@@ -1488,6 +1510,7 @@ async function addMeter(){
 /* ====== SETTINGS ====== */
 function saveRouteInfo(){
   settings.routeNum = document.getElementById('mRouteNum').value.trim()||'T00001';
+  settings.triplet = String(document.getElementById('mTriplet').value||'1');
   settings.worker = document.getElementById('mWorkerName').value.trim();
   saveSettings3();
   document.getElementById('topBadge').textContent = settings.routeNum;
@@ -1727,7 +1750,48 @@ async function finishImport(rows, statusEl, input){
   input.value = '';
 }
 
-function exportTXT(){
+function getRouteExportName(){
+  const raw = String(settings.routeNum||'').trim();
+  // Export format: R<triplet>T<route>, e.g. R2T216 or R3T216.
+  let clean = raw.replace(/^R\d+T?/i,'').replace(/^T/i,'').replace(/^CH/i,'').replace(/[^0-9A-Za-z_-]/g,'');
+  if(!clean) clean='00000';
+  const triplet = ['1','2','3'].includes(String(settings.triplet)) ? String(settings.triplet) : '1';
+  return `R${triplet}T${clean}`;
+}
+
+async function saveExportToCliente(blob, filename){
+  // Select the phone's internal storage once, then create:
+  // cliente ADE / R2T216 / R2T216.txt (or .zip)
+  // If File System Access API is unavailable, fall back to normal download.
+  try{
+    if(window.showDirectoryPicker){
+      const root = await window.showDirectoryPicker({mode:'readwrite'});
+      const cliente = await root.getDirectoryHandle('cliente ADE',{create:true});
+      const roundDirName = filename.replace(/\.(txt|zip)$/i,'');
+      const roundDir = await cliente.getDirectoryHandle(roundDirName,{create:true});
+      const fh = await roundDir.getFileHandle(filename,{create:true});
+      const writable = await fh.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      toast(`✅ تم حفظ ${filename} داخل cliente ADE/${roundDirName}`);
+      return true;
+    }
+  }catch(err){
+    if(err && err.name === 'AbortError') { toast('تم إلغاء اختيار مكان الحفظ'); return false; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast(`✅ تم تنزيل ${filename}`);
+  return true;
+}
+
+async function exportTXT(){
   if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
   const headers = ['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];
   const lines = [headers.join('\t')];
@@ -1741,13 +1805,7 @@ function exportTXT(){
     lines.push(row.join('\t'));
   });
   const blob = new Blob(['\uFEFF'+lines.join('\n')], {type:'text/plain;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `client.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('✅ تم تصدير ملف txt');
+  await saveExportToCliente(blob, `${getRouteExportName()}.txt`);
 }
 
 /* ====== EXPORT RESULTS (Excel + Photos ZIP) ====== */
@@ -1847,13 +1905,8 @@ async function exportResultsZip(){
   zip.file('المواقع.html', locHtml);
 
   const blob = await zip.generateAsync({type:'blob'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `client.zip`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast(`✅ تم التصدير (${photoCount} صورة)`);
+  await saveExportToCliente(blob, `${getRouteExportName()}.zip`);
+  toast(`✅ تم تجهيز ZIP للجولة ${getRouteExportName().replace(/^R/,'')} (${photoCount} صورة)`);
 }
 
 /* ====== EXPORT / IMPORT (JSON backup) ====== */
