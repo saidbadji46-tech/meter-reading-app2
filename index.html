@@ -723,6 +723,20 @@ async function safeDelete(k){ try{ await idbDeleteRaw(k); }catch(e){} }
 
 async function loadData(){
   const m = await sg('meters'); meters = m ? JSON.parse(m) : [];
+  // Restore serials previously extracted during import, even for customers
+  // that already existed before the import.
+  try{
+    const sm = await sg('serialByMeter');
+    if(sm){
+      const map = JSON.parse(sm) || {};
+      let changed = false;
+      meters.forEach(x=>{
+        const key = String(x.meter||'').trim().toUpperCase();
+        if(key && !x.meterSerial && map[key]){ x.meterSerial = String(map[key]); changed = true; }
+      });
+      if(changed) await saveMeters();
+    }
+  }catch(e){}
   const s = await sg('settings'); if(s){ settings=Object.assign(settings, JSON.parse(s)); }
   document.getElementById('mRouteNum').value = settings.routeNum;
   document.getElementById('mWorkerName').value = settings.worker||'';
@@ -982,7 +996,7 @@ function openMeter(id){
   previewCons();
   formSnapshotAtOpen = currentFormSnapshot();
   // show GPS button if already captured
-  setTimeout(()=> renderLocationBtn(m), 100);
+  setTimeout(()=> { renderLocationBtn(m); if(!m.lat || !m.lng){ const st=document.getElementById('gpsStatus'); if(st) st.textContent='📍 لم يتم تسجيل الموقع بعد'; } }, 100);
 }
 
 function selectAnnot(code, el){
@@ -1242,6 +1256,7 @@ function manualCaptureGPS(){
         m.lng = pos.coords.longitude;
         m.locAccuracy = accuracy;
         await saveMeters();
+        renderMapList();
         if(accuracy > 50){
           if(statusEl) statusEl.innerHTML = `⚠️ دقة ضعيفة (±${accuracy}م) — <b style="color:var(--accent)">جرّب مرة ثانية في الهواء الطلق</b>`;
         } else {
@@ -1250,8 +1265,9 @@ function manualCaptureGPS(){
         renderMapLink(m);
       },
       async (err)=>{
-        // GPS blocked by file:// — fallback to IP geolocation
-        if(statusEl) statusEl.textContent = '⏳ GPS محجوب، جارِ تحديد الموقع بالشبكة...';
+        // If the browser denies/blocks GPS, keep a clear message and try a network fallback.
+        const reason = err && err.code===1 ? '⚠️ اسمح للتطبيق بالوصول إلى الموقع من إعدادات المتصفح' : '⏳ تعذّر GPS، جارِ محاولة تحديد الموقع بالشبكة...';
+        if(statusEl) statusEl.textContent = reason;
         await ipGeolocationFallback();
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
@@ -1274,6 +1290,7 @@ async function ipGeolocationFallback(){
       m.lng = parseFloat(d.longitude);
       m.locAccuracy = 5000; // IP accuracy ~5km
       await saveMeters();
+      renderMapList();
       if(statusEl) statusEl.textContent = `📍 موقع تقريبي (شبكة) — دقة ≈5 كم`;
       renderMapLink(m);
       toast('📍 تم تسجيل موقع تقريبي — يمكن تدقيقه لاحقاً');
@@ -1296,6 +1313,7 @@ function captureGPS(){
       m.lng = pos.coords.longitude;
       m.locAccuracy = Math.round(pos.coords.accuracy);
       await saveMeters();
+      renderMapList();
       const statusEl = document.getElementById('gpsStatus');
       if(statusEl) statusEl.textContent = `✅ تم (±${m.locAccuracy}م)`;
       renderMapLink(m);
@@ -1535,16 +1553,13 @@ function tryParseADEFixedWidth(lines){
       const restTail = tail.substring(42);
       const m = restTail.match(/(\d+)(EM|AR)\s+(\d+)\s*$/i);
       const prevIndex = m ? Math.floor(parseInt(m[3],10)/10) : 0;
-      // ADE export contains a 10-digit field followed by the meter serial (another 10 digits),
-      // e.g. 2020241128 2025005433. Keep the second 10-digit value as the serial.
+      // ADE export: the serial is the SECOND 10-digit value beginning with 20
+      // on the customer's record. Example: 2020241128 2025005433 -> 2025005433.
+      // Some TXT files have no separator, so search the complete raw line.
       let meterSerial='';
-      const pair = raw.match(/(20\d{8})\s*(20\d{8})/);
-      if(pair) meterSerial=pair[2];
-      // Fallback: take a standalone 10-digit ADE serial near the end of the record.
-      if(!meterSerial){
-        const serials = raw.match(/\b20\d{8}\b/g) || [];
-        if(serials.length) meterSerial = serials[serials.length-1];
-      }
+      const serials = raw.match(/20\d{8}/g) || [];
+      if(serials.length >= 2) meterSerial = serials[1];
+      else if(serials.length === 1) meterSerial = serials[0];
       const address = [addr1, addr2].filter(Boolean).join('، ');
       records.push({ name, meter: meterSeg, address, subType, phone:'', prevIndex, meterSerial });
     }
@@ -1555,20 +1570,21 @@ function tryParseADEFixedWidth(lines){
 
 async function commitImport(records, statusEl, input, routeNum=''){
   if(!records.length){ statusEl.textContent='الملف فارغ أو غير مقروء.'; return; }
-  let added=0, skipped=0;
-  const existingMeters = new Set(meters.map(m=>m.meter));
+  let added=0, updated=0, skipped=0;
+  const existingMeters = new Set(meters.map(m=>String(m.meter||'').trim().toUpperCase()));
+  const serialMap = {};
   records.forEach(rec=>{
     if(!rec.name || !rec.meter){ skipped++; return; }
-    if(existingMeters.has(rec.meter)){
-      // If the customer already exists, keep all existing customer data intact
-      // and only fill the serial number when the imported ADE file provides it.
-      const existing = meters.find(x=>x.meter===rec.meter);
-      if(existing && rec.meterSerial && !existing.meterSerial){
-        existing.meterSerial = rec.meterSerial;
-        added++;
-      } else {
-        skipped++;
-      }
+    const meterKey = String(rec.meter).trim().toUpperCase();
+    if(rec.meterSerial) serialMap[meterKey] = String(rec.meterSerial).trim();
+    const existing = meters.find(x=>String(x.meter||'').trim().toUpperCase()===meterKey);
+    if(existing){
+      // Never replace the customer's name or other existing data. Only restore
+      // the serial from the ADE import when it is available.
+      if(rec.meterSerial && String(existing.meterSerial||'').trim() !== String(rec.meterSerial).trim()){
+        existing.meterSerial = String(rec.meterSerial).trim();
+        updated++;
+      } else skipped++;
       return;
     }
     meters.push({
@@ -1580,15 +1596,17 @@ async function commitImport(records, statusEl, input, routeNum=''){
       phone: rec.phone||'',
       prevIndex: parseFloat(rec.prevIndex)||0,
       newIndex:null, consumption:0, amount:0,
-      meterSerial:rec.meterSerial||'', status:'pending', annot:null, lowReadingReason:'', obs:'', hasPhoto:false, savedAt:null
+      meterSerial:rec.meterSerial||'', status:'pending', annot:null, lowReadingReason:'', obs:'', hasPhoto:false, savedAt:null,
+      lat:null, lng:null, locAccuracy:null
     });
-    existingMeters.add(rec.meter);
+    existingMeters.add(meterKey);
     added++;
   });
+  await ss('serialByMeter', JSON.stringify(serialMap));
   await saveMeters();
   renderAll();
-  statusEl.textContent = `تم استيراد ${added} زبون${skipped? ' (تم تجاوز '+skipped+' سطر ناقص أو مكرر)':''}.`;
-  toast(`✅ تمت إضافة ${added} زبون`);
+  statusEl.textContent = `تم استيراد ${added} زبون${updated? ' وتحديث الرقم التسلسلي لـ '+updated+' زبون':''}${skipped? ' (تم تجاوز '+skipped+' سطر ناقص أو مكرر)':''}.`;
+  toast(`✅ تم الاستيراد — أضيف ${added} وتحدّث ${updated} رقم تسلسلي`);
   if(input) input.value = '';
 }
 
@@ -1668,22 +1686,21 @@ async function finishImport(rows, statusEl, input){
   const fieldByCol = {};
   Object.keys(rows[0]).forEach(col=>{ const f=matchField(col); if(f) fieldByCol[col]=f; });
 
-  let added=0, skipped=0;
-  const existingMeters = new Set(meters.map(m=>m.meter));
+  let added=0, updated=0, skipped=0;
+  const existingMeters = new Set(meters.map(m=>String(m.meter||'').trim().toUpperCase()));
+  const serialMap = {};
   rows.forEach(row=>{
     const rec = {};
     Object.keys(row).forEach(col=>{ if(fieldByCol[col]) rec[fieldByCol[col]] = String(row[col]).trim(); });
     if(!rec.name || !rec.meter){ skipped++; return; }
-    if(existingMeters.has(rec.meter)){
-      // If the customer already exists, keep all existing customer data intact
-      // and only fill the serial number when the imported ADE file provides it.
-      const existing = meters.find(x=>x.meter===rec.meter);
-      if(existing && rec.meterSerial && !existing.meterSerial){
-        existing.meterSerial = rec.meterSerial;
-        added++;
-      } else {
-        skipped++;
-      }
+    const meterKey = String(rec.meter).trim().toUpperCase();
+    if(rec.meterSerial) serialMap[meterKey] = String(rec.meterSerial).trim();
+    const existing = meters.find(x=>String(x.meter||'').trim().toUpperCase()===meterKey);
+    if(existing){
+      if(rec.meterSerial && String(existing.meterSerial||'').trim() !== String(rec.meterSerial).trim()){
+        existing.meterSerial = String(rec.meterSerial).trim();
+        updated++;
+      } else skipped++;
       return;
     }
     meters.push({
@@ -1695,20 +1712,21 @@ async function finishImport(rows, statusEl, input){
       phone: rec.phone||'',
       prevIndex: parseFloat(rec.prevIndex)||0,
       newIndex:null, consumption:0, amount:0,
-      meterSerial: rec.meterSerial||'', status:'pending', annot:null, lowReadingReason:'', obs:'', hasPhoto:false, savedAt:null
+      meterSerial: rec.meterSerial||'', status:'pending', annot:null, lowReadingReason:'', obs:'', hasPhoto:false, savedAt:null,
+      lat:null, lng:null, locAccuracy:null
     });
-    existingMeters.add(rec.meter);
+    existingMeters.add(meterKey);
     added++;
   });
 
+  await ss('serialByMeter', JSON.stringify(serialMap));
   await saveMeters();
   renderAll();
-  statusEl.textContent = `تم استيراد ${added} زبون${skipped? ' (تم تجاوز '+skipped+' سطر ناقص أو مكرر)':''}.`;
-  toast(`✅ تمت إضافة ${added} زبون`);
+  statusEl.textContent = `تم استيراد ${added} زبون${updated? ' وتحديث الرقم التسلسلي لـ '+updated+' زبون':''}${skipped? ' (تم تجاوز '+skipped+' سطر ناقص أو مكرر)':''}.`;
+  toast(`✅ تم الاستيراد — أضيف ${added} وتحدّث ${updated} رقم تسلسلي`);
   input.value = '';
 }
 
-/* ====== EXPORT results as .txt ====== */
 function exportTXT(){
   if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
   const headers = ['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];
