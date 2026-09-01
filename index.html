@@ -454,6 +454,8 @@ main{flex:1;overflow-y:auto;}
             &nbsp;|&nbsp; الهاتف: <span id="dPhone">—</span>
             <button type="button" onclick="editCustomerPhone()" style="margin-right:6px;padding:3px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--blue);cursor:pointer;font-size:11px;">✏️ إضافة/تعديل</button>
             <br>
+            🪪 رقم التعريف الوطني: <span id="dNationalId">—</span> <button type="button" onclick="editCustomerNationalId()" style="margin-right:6px;padding:3px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--blue);cursor:pointer;font-size:11px;">✏️ إضافة/تعديل</button>
+            <br>
             📍 العنوان: <span id="dAddress"></span>
           </div>
         </div>
@@ -555,7 +557,7 @@ main{flex:1;overflow-y:auto;}
     <div class="manage-card">
       <h3>📋 معلومات الجولة</h3>
       <div class="field"><label>رقم الجولة</label><input id="mRouteNum" type="text" placeholder="مثال: T216 أو 216" value="T00001"></div>
-      <div class="field"><label>الثلاثي</label><select id="mTriplet"><option value="1">الثلاثي الأول (R1T)</option><option value="2">الثلاثي الثاني (R2T)</option><option value="3">الثلاثي الثالث (R3T)</option></select></div>
+      <div class="field"><label>الثلاثي</label><select id="mTriplet"><option value="1">الثلاثي الأول (R1T)</option><option value="2">الثلاثي الثاني (R2T)</option><option value="3">الثلاثي الثالث (R3T)</option><option value="4">الثلاثي الرابع (R4T)</option><option value="5">الثلاثي الخامس (R5T)</option><option value="6">الثلاثي السادس (R6T)</option><option value="7">الثلاثي السابع (R7T)</option><option value="8">الثلاثي الثامن (R8T)</option><option value="9">الثلاثي التاسع (R9T)</option></select></div>
       <div class="field"><label>اسم العامل / القارئ</label><input id="mWorkerName" type="text" placeholder="الاسم الكامل"></div>
       <button class="btn-prim" onclick="saveRouteInfo()" style="width:100%;padding:12px;">حفظ المعلومات</button>
     </div>
@@ -620,6 +622,7 @@ main{flex:1;overflow-y:auto;}
       </select>
     </div>
     <div class="field"><label>رقم الهاتف</label><input id="aPhone" type="tel" placeholder="05xxxxxxxx"></div>
+    <div class="field"><label>رقم التعريف الوطني</label><input id="aNationalId" type="text" inputmode="numeric" placeholder="رقم التعريف الوطني"></div>
     <div class="field"><label>القراءة السابقة (م³)</label><input id="aPrev" type="number" inputmode="numeric" placeholder="0"></div>
     <div class="btn-row">
       <button class="btn-ghost" onclick="closeAddModal()">إلغاء</button>
@@ -960,6 +963,18 @@ async function commitCustomerPhone(){
   toast(m.phone ? 'تم حفظ هاتف الزبون' : 'تم حذف هاتف الزبون');
 }
 
+function editCustomerNationalId(){
+  const m=meters.find(x=>x.id===currentMeterId); if(!m) return;
+  const el=document.getElementById('dNationalId'); if(!el || document.getElementById('nidQuickInput')) return;
+  el.innerHTML=`<input id="nidQuickInput" type="text" inputmode="numeric" value="${escH(m.nationalId||'')}" placeholder="رقم التعريف الوطني" style="width:150px;border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:12px;direction:ltr;text-align:right;"> <button type="button" onclick="commitCustomerNationalId()" style="padding:3px 7px;border:1px solid var(--blue);border-radius:6px;background:var(--blue);color:#fff;cursor:pointer;font-size:11px;">حفظ</button>`;
+  document.getElementById('nidQuickInput').focus();
+}
+async function commitCustomerNationalId(){
+  const m=meters.find(x=>x.id===currentMeterId), input=document.getElementById('nidQuickInput'); if(!m||!input) return;
+  m.nationalId=input.value.trim(); await saveMeters();
+  document.getElementById('dNationalId').textContent=m.nationalId||'—'; toast(m.nationalId?'تم حفظ رقم التعريف الوطني':'تم حذف رقم التعريف الوطني');
+}
+
 function openMeter(id){
   currentMeterId = id;
   const m = meters.find(x=>x.id===id);
@@ -975,6 +990,7 @@ function openMeter(id){
   document.getElementById('dAddress').textContent = m.address||'—';
   document.getElementById('dMeterNum').textContent = m.meter;
   document.getElementById('dPhone').textContent = m.phone||'—';
+  document.getElementById('dNationalId').textContent = m.nationalId||'—';
   document.getElementById('dPrevIndex').textContent = m.prevIndex;
   document.getElementById('newIndexInput').value = m.newIndex||'';
   document.getElementById('obsInput').value = m.obs||'';
@@ -1487,7 +1503,7 @@ async function runMeterOCR(dataUrl){
 
 /* ====== ADD METER ====== */
 function openAddMeter(){ document.getElementById('addModal').classList.add('show'); }
-function closeAddModal(){ document.getElementById('addModal').classList.remove('show'); ['aName','aMeter','aSerial','aAddr','aPhone','aPrev'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); }
+function closeAddModal(){ document.getElementById('addModal').classList.remove('show'); ['aName','aMeter','aSerial','aAddr','aPhone','aNationalId','aPrev'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); }
 
 async function addMeter(){
   const name = document.getElementById('aName').value.trim();
@@ -1496,11 +1512,12 @@ async function addMeter(){
   const addr = document.getElementById('aAddr').value.trim();
   const type = document.getElementById('aType').value;
   const phone = document.getElementById('aPhone').value.trim();
+  const nationalId = document.getElementById('aNationalId').value.trim();
   const prev = parseFloat(document.getElementById('aPrev').value)||0;
   if(!name){ toast('أدخل اسم المشترك'); return; }
   if(!meter){ toast('أدخل رمز الزبون'); return; }
   const id = 'M' + Date.now() + Math.floor(Math.random()*1000);
-  meters.push({ id, name, meter, address:addr, subType:type, phone, prevIndex:prev, meterSerial:serial, newIndex:null, consumption:0, amount:0, status:'pending', annot:null, lowReadingReason:'', obs:'', hasPhoto:false, savedAt:null });
+  meters.push({ id, name, meter, address:addr, subType:type, phone, nationalId, prevIndex:prev, meterSerial:serial, newIndex:null, consumption:0, amount:0, status:'pending', annot:null, lowReadingReason:'', obs:'', hasPhoto:false, savedAt:null });
   await saveMeters();
   closeAddModal();
   renderAll();
@@ -1547,6 +1564,11 @@ function matchField(header){
 }
 
 /* ====== ADE fixed-width tournée format (.TXT) ====== */
+function detectTripletFromADE(fileName='', lines=[]){
+  const src=String(fileName||'')+' '+lines.slice(0,20).join(' ');
+  const m=src.match(/(?:^|[^A-Za-z0-9])(?:A\d+)?T(\d)(?=\d{2,4}(?:\.txt)?(?:\s|$))/i);
+  return m ? m[1] : '';
+}
 function extractRouteFromADE(lines, fileName=''){
   for(const raw of lines.slice(0,30)){
     const line=String(raw||'').trim();
@@ -1616,7 +1638,7 @@ async function commitImport(records, statusEl, input, routeNum=''){
       meter: rec.meter,
       address: rec.address||'',
       subType: rec.subType||'10',
-      phone: rec.phone||'',
+      phone: rec.phone||'', nationalId: rec.nationalId||'',
       prevIndex: parseFloat(rec.prevIndex)||0,
       newIndex:null, consumption:0, amount:0,
       meterSerial:rec.meterSerial||'', status:'pending', annot:null, lowReadingReason:'', obs:'', hasPhoto:false, savedAt:null,
@@ -1648,7 +1670,9 @@ function importSubscribersFile(input){
         const rawLines = text.split(/\r?\n/);
         const adeRecords = tryParseADEFixedWidth(rawLines);
         const detectedRoute = extractRouteFromADE(rawLines, file.name);
+        const detectedTriplet = detectTripletFromADE(file.name, rawLines);
         if(adeRecords){
+          if(detectedTriplet){ settings.triplet=detectedTriplet; document.getElementById('mTriplet').value=detectedTriplet; await saveSettings3(); }
           if(detectedRoute){
             settings.routeNum = detectedRoute;
             document.getElementById('mRouteNum').value = detectedRoute;
@@ -1661,6 +1685,8 @@ function importSubscribersFile(input){
         }
         const rows = parseDelimitedText(text);
         const detectedRoute2 = extractRouteFromADE(rawLines, file.name);
+        const detectedTriplet2 = detectTripletFromADE(file.name, rawLines);
+        if(detectedTriplet2){ settings.triplet=detectedTriplet2; document.getElementById('mTriplet').value=detectedTriplet2; await saveSettings3(); }
         if(detectedRoute2){ settings.routeNum=detectedRoute2; document.getElementById('mRouteNum').value=detectedRoute2; document.getElementById('topBadge').textContent=detectedRoute2; await saveSettings3(); }
         finishImport(rows, statusEl, input);
       }catch(err){
@@ -1755,7 +1781,7 @@ function getRouteExportName(){
   // Export format: R<triplet>T<route>, e.g. R2T216 or R3T216.
   let clean = raw.replace(/^R\d+T?/i,'').replace(/^T/i,'').replace(/^CH/i,'').replace(/[^0-9A-Za-z_-]/g,'');
   if(!clean) clean='00000';
-  const triplet = ['1','2','3'].includes(String(settings.triplet)) ? String(settings.triplet) : '1';
+  const triplet = /^[1-9]$/.test(String(settings.triplet)) ? String(settings.triplet) : '1';
   return `R${triplet}T${clean}`;
 }
 
@@ -1948,6 +1974,7 @@ if ('serviceWorker' in navigator) {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         if(!newWorker) return;
