@@ -1551,6 +1551,7 @@ const HEADER_MAP = {
   meter: ['meter','رقمالعداد','العداد','رقمالكونتور','compteur','meternumber','numerocompteur'],
   address: ['address','العنوان','عنوان','adresse'],
   phone: ['phone','الهاتف','هاتف','رقمالهاتف','telephone','tel'],
+  nationalId: ['nationalid','رقمالتعريفالوطني','التعريفالوطني','رقمالتعريف','nin','nni','nationalidnumber'],
   subType: ['type','النوع','نوعالمشترك','typeabonne','typeabonné'],
   prevIndex: ['prev','القراءهالسابقه','القراءةالسابقة','indexسابق','ancienindex','قراءهسابقه','previousindex','oldindex'],
   meterSerial: ['meterserial','serial','الرقمالتسلسلي','رقمتسلسلي','الرقمالتسلسليللعداد','numeroserie','sn']
@@ -1746,10 +1747,12 @@ async function finishImport(rows, statusEl, input){
     if(rec.meterSerial) serialMap[meterKey] = String(rec.meterSerial).trim();
     const existing = meters.find(x=>String(x.meter||'').trim().toUpperCase()===meterKey);
     if(existing){
+      let changed=false;
       if(rec.meterSerial && String(existing.meterSerial||'').trim() !== String(rec.meterSerial).trim()){
-        existing.meterSerial = String(rec.meterSerial).trim();
-        updated++;
-      } else skipped++;
+        existing.meterSerial = String(rec.meterSerial).trim(); changed=true;
+      }
+      if(rec.nationalId && !String(existing.nationalId||'').trim()){ existing.nationalId=String(rec.nationalId).trim(); changed=true; }
+      if(changed) updated++; else skipped++;
       return;
     }
     meters.push({
@@ -1758,7 +1761,7 @@ async function finishImport(rows, statusEl, input){
       meter: rec.meter,
       address: rec.address||'',
       subType: rec.subType||'10',
-      phone: rec.phone||'',
+      phone: rec.phone||'', nationalId: rec.nationalId||'',
       prevIndex: parseFloat(rec.prevIndex)||0,
       newIndex:null, consumption:0, amount:0,
       meterSerial: rec.meterSerial||'', status:'pending', annot:null, lowReadingReason:'', obs:'', hasPhoto:false, savedAt:null,
@@ -1786,35 +1789,42 @@ function getRouteExportName(){
 }
 
 async function saveExportToCliente(blob, filename){
-  // Select the phone's internal storage once, then create:
-  // cliente ADE / R2T216 / R2T216.txt (or .zip)
-  // If File System Access API is unavailable, fall back to normal download.
+  // Android/Chrome does not allow a web page to silently write to the root of
+  // internal storage. The first export therefore asks the user to choose the
+  // actual "cliente ADE" folder (or create it). The handle is remembered so
+  // later exports create R3T216/R4T216 folders automatically without asking.
   try{
     if(window.showDirectoryPicker){
-      const root = await window.showDirectoryPicker({mode:'readwrite'});
-      const cliente = await root.getDirectoryHandle('cliente ADE',{create:true});
+      let cliente = await idbGetRaw('clienteADEHandle');
+      if(cliente){
+        try{
+          const perm = await cliente.queryPermission?.({mode:'readwrite'});
+          if(perm !== 'granted') await cliente.requestPermission?.({mode:'readwrite'});
+          if((await cliente.queryPermission?.({mode:'readwrite'})) !== 'granted') cliente=null;
+        }catch(e){ cliente=null; }
+      }
+      if(!cliente){
+        toast('اختر أو أنشئ مجلد cliente ADE داخل التخزين الداخلي مرة واحدة فقط');
+        cliente = await window.showDirectoryPicker({mode:'readwrite', startIn:'documents'});
+        // User should select the folder named cliente ADE itself.
+        await idbSetRaw('clienteADEHandle', cliente);
+      }
       const roundDirName = filename.replace(/\.(txt|zip)$/i,'');
       const roundDir = await cliente.getDirectoryHandle(roundDirName,{create:true});
       const fh = await roundDir.getFileHandle(filename,{create:true});
       const writable = await fh.createWritable();
-      await writable.write(blob);
-      await writable.close();
+      await writable.write(blob); await writable.close();
       toast(`✅ تم حفظ ${filename} داخل cliente ADE/${roundDirName}`);
       return true;
     }
   }catch(err){
-    if(err && err.name === 'AbortError') { toast('تم إلغاء اختيار مكان الحفظ'); return false; }
+    if(err && err.name === 'AbortError'){ toast('تم إلغاء اختيار مجلد cliente ADE'); return false; }
+    console.error(err);
+    toast('تعذر الحفظ المباشر. سيتم تنزيل الملف بالطريقة العادية.');
   }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-  toast(`✅ تم تنزيل ${filename}`);
-  return true;
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000); toast(`✅ تم تنزيل ${filename}`); return true;
 }
 
 async function exportTXT(){
@@ -1846,6 +1856,7 @@ async function exportResultsZip(){
     'العنوان': m.address||'',
     'نوع المشترك': m.subType||'',
     'الهاتف': m.phone||'',
+    'رقم التعريف الوطني': m.nationalId||'',
     'القراءة السابقة': m.prevIndex,
     'القراءة الجديدة': m.newIndex!=null ? m.newIndex : '',
     'الاستهلاك (م³)': m.consumption||'',
