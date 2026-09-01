@@ -441,11 +441,20 @@ main{flex:1;overflow-y:auto;}
         <div class="sub-num">
           <span id="dRouteNum"></span> — نوع المشترك: <span id="dSubType"></span>
         </div>
-        <div class="address" id="dAddress"></div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px;">
-          رمز الزبون: <b style="font-family:'IBM Plex Mono',monospace;" id="dMeterNum"></b>
-          &nbsp;|&nbsp; الرقم التسلسلي: <span style="font-family:'IBM Plex Mono',monospace;" id="dMeterSerial"></span>
-          &nbsp;|&nbsp; الهاتف: <span id="dPhone">—</span>
+
+        <!-- معلومات الزبون كاملة تحت الشريط العلوي، مع إبقاء الاسم والكود في الشريط -->
+        <div style="margin-top:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;">
+          <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:7px;">
+            👤 اسم ولقب الزبون: <span id="dCustomerName"></span>
+          </div>
+          <div style="font-size:12.5px;color:var(--muted);line-height:1.9;">
+            🔢 الرقم التسلسلي: <b style="font-family:'IBM Plex Mono',monospace;color:var(--text);" id="dMeterSerial"></b>
+            <br>
+            رمز الزبون: <b style="font-family:'IBM Plex Mono',monospace;color:var(--text);" id="dMeterNum"></b>
+            &nbsp;|&nbsp; الهاتف: <span id="dPhone">—</span>
+            <br>
+            📍 العنوان: <span id="dAddress"></span>
+          </div>
         </div>
         <div id="locBtnHeader" style="margin-top:8px;"></div>
       </div>
@@ -634,16 +643,17 @@ main{flex:1;overflow-y:auto;}
 <script>
 /* ====== DATA ====== */
 const ANNOTATIONS = [
-  {code:'00', label:'مسكن خالي'},
+  {code:'INH', label:'مسكن خالي'},
   {code:'AS', label:'غياب مشترك'},
   {code:'N.F', label:'باب مغلق'},
   {code:'AR', label:'تلف عداد'},
   {code:'FC', label:'تسرب ماء'},
-  {code:'ZC', label:'VOLE'},
-  {code:'GE', label:'c.casi'},
-  {code:'INC', label:'ILISIBL'},
+  {code:'VLD', label:'سرقة الماء'},
+  {code:'C.cs', label:'زجاج مكسور'},
+  {code:'INC', label:'غيرممكن'},
+  {code:'ILS', label:'غير مرئي'},
   {code:'TP', label:'رقم أقل'},
-  {code:'IV', label:'mal placé'},
+  {code:'MLP', label:'تركيب خاطىء'},
   {code:'CO', label:'مقطوع'},
   {code:'RS', label:'محذوف'},
   {code:'INV', label:'اتجاه معكوس'},
@@ -813,9 +823,9 @@ function doSearch(){
 }
 
 function normalizeAnnotList(value){
-  if(Array.isArray(value)) return value.filter(Boolean);
+  if(Array.isArray(value)) return value.filter(Boolean).map(c=>c==='00'?'INH':(c==='ZC'?'VLD':(c==='GE'?'C.cs':(c==='IV'?'MLP':c))));
   if(!value) return [];
-  return String(value).split(/\s*\+\s*|\s*,\s*|\s*\|\s*/).filter(Boolean);
+  return String(value).split(/\s*\+\s*|\s*,\s*|\s*\|\s*/).filter(Boolean).map(c=>c==='00'?'INH':(c==='ZC'?'VLD':(c==='GE'?'C.cs':(c==='IV'?'MLP':c))));
 }
 
 function renderListTo(containerId, list){
@@ -965,6 +975,8 @@ function openMeter(id){
   document.getElementById('backBtn').style.display='flex';
   document.getElementById('topTitle').textContent = m.name;
   document.getElementById('topBadge').textContent = '#'+m.meter;
+  const customerNameEl = document.getElementById('dCustomerName');
+  if(customerNameEl) customerNameEl.textContent = m.name || '—';
   fabEl.style.display='none';
   document.querySelector('.bottom-nav').style.display='none';
   previewCons();
@@ -1065,7 +1077,7 @@ async function chooseLowReadingReason(reason){
   m.amount=calcADEBill(m.consumption, m.subType);
   m.lowReadingReason=reason;
   m.obs=document.getElementById('obsInput').value;
-  m.annot=selectedAnnots.length ? selectedAnnots.join('+') : '00';
+  m.annot=selectedAnnots.length ? selectedAnnots.join('+') : 'INH';
   m.status=selectedAnnots.some(c=>c!=='00') ? 'anom' : 'done';
   m.savedAt=new Date().toISOString();
   await saveMeters();
@@ -1107,7 +1119,7 @@ async function saveReleve(){
   }
   m.lowReadingReason = '';
   m.obs = document.getElementById('obsInput').value;
-  m.annot = selectedAnnots.length ? selectedAnnots.join('+') : '00';
+  m.annot = selectedAnnots.length ? selectedAnnots.join('+') : 'INH';
   m.status = hasSignal ? 'anom' : 'done';
   m.savedAt = new Date().toISOString();
   await saveMeters();
