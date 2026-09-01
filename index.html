@@ -1874,6 +1874,22 @@ async function exportResultsZip(){
 
   const ws = XLSX.utils.json_to_sheet(rows);
 
+  // ضبط عرض أعمدة Excel تلقائياً حسب محتوى كل عمود:
+  // الأعمدة القصيرة تبقى قصيرة، والأعمدة الطويلة (مثل العنوان
+  // ورقم التعريف الوطني) تأخذ عرضاً أكبر بدون تعديل يدوي.
+  const headers = Object.keys(rows[0] || {});
+  ws['!cols'] = headers.map((header, c) => {
+    let maxLen = String(header).length;
+    for (const row of rows) {
+      const value = row[header] == null ? '' : String(row[header]);
+      // نحسب طولاً تقريبياً مناسباً للعربية والنصوص الطويلة.
+      maxLen = Math.max(maxLen, value.length);
+    }
+    // حدود عملية حتى لا تصبح الأعمدة الضخمة جداً مزعجة.
+    const width = Math.min(55, Math.max(10, maxLen + 2));
+    return { wch: width };
+  });
+
   // جعل روابط الخريطة قابلة للنقر في Excel
   const range = XLSX.utils.decode_range(ws['!ref']);
   for(let R = range.s.r + 1; R <= range.e.r; R++){
