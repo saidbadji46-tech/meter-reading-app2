@@ -607,7 +607,7 @@ main{flex:1;overflow-y:auto;}
     <div class="sheet-title">إضافة عداد جديد</div>
     <div class="field"><label>اسم المشترك</label><input id="aName" type="text" placeholder="الاسم الكامل للمشترك"></div>
     <div class="field"><label>رمز الزبون</label><input id="aMeter" type="text" placeholder="مثال: T34326"></div>
-    <div class="field"><label>الرقم التسلسلي للعداد (اختياري)</label><input id="aSerial" type="text" placeholder="مثال: 2022126466"></div>
+    <div class="field"><label>الرقم التسلسلي للعداد</label><input id="aSerial" type="text" placeholder="مثال: 2022126466"></div>
     <div class="field"><label>العنوان الكامل</label><textarea id="aAddr" placeholder="الحي، الشارع، الرقم، البلدية"></textarea></div>
     <div class="field"><label>نوع المشترك</label>
       <select id="aType">
@@ -1538,8 +1538,13 @@ function tryParseADEFixedWidth(lines){
       // ADE export contains a 10-digit field followed by the meter serial (another 10 digits),
       // e.g. 2020241128 2025005433. Keep the second 10-digit value as the serial.
       let meterSerial='';
-      const pair = raw.match(/(20\d{8})(20\d{8})/);
+      const pair = raw.match(/(20\d{8})\s*(20\d{8})/);
       if(pair) meterSerial=pair[2];
+      // Fallback: take a standalone 10-digit ADE serial near the end of the record.
+      if(!meterSerial){
+        const serials = raw.match(/\b20\d{8}\b/g) || [];
+        if(serials.length) meterSerial = serials[serials.length-1];
+      }
       const address = [addr1, addr2].filter(Boolean).join('، ');
       records.push({ name, meter: meterSeg, address, subType, phone:'', prevIndex, meterSerial });
     }
@@ -1554,7 +1559,18 @@ async function commitImport(records, statusEl, input, routeNum=''){
   const existingMeters = new Set(meters.map(m=>m.meter));
   records.forEach(rec=>{
     if(!rec.name || !rec.meter){ skipped++; return; }
-    if(existingMeters.has(rec.meter)){ skipped++; return; }
+    if(existingMeters.has(rec.meter)){
+      // If the customer already exists, keep all existing customer data intact
+      // and only fill the serial number when the imported ADE file provides it.
+      const existing = meters.find(x=>x.meter===rec.meter);
+      if(existing && rec.meterSerial && !existing.meterSerial){
+        existing.meterSerial = rec.meterSerial;
+        added++;
+      } else {
+        skipped++;
+      }
+      return;
+    }
     meters.push({
       id: 'M'+Date.now()+Math.floor(Math.random()*10000),
       name: rec.name,
@@ -1658,7 +1674,18 @@ async function finishImport(rows, statusEl, input){
     const rec = {};
     Object.keys(row).forEach(col=>{ if(fieldByCol[col]) rec[fieldByCol[col]] = String(row[col]).trim(); });
     if(!rec.name || !rec.meter){ skipped++; return; }
-    if(existingMeters.has(rec.meter)){ skipped++; return; }
+    if(existingMeters.has(rec.meter)){
+      // If the customer already exists, keep all existing customer data intact
+      // and only fill the serial number when the imported ADE file provides it.
+      const existing = meters.find(x=>x.meter===rec.meter);
+      if(existing && rec.meterSerial && !existing.meterSerial){
+        existing.meterSerial = rec.meterSerial;
+        added++;
+      } else {
+        skipped++;
+      }
+      return;
+    }
     meters.push({
       id: 'M'+Date.now()+Math.floor(Math.random()*10000),
       name: rec.name,
