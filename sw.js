@@ -1,5 +1,5 @@
 // Service Worker - يخزن التطبيق للعمل بلا انترنت، ويسولك قبل ما يبدل لنسخة جديدة
-const CACHE_NAME = 'meter-reading-v4';
+const CACHE_NAME = 'meter-reading-v5';
 
 self.addEventListener('install', () => {
   /* ماندير-وش skipWaiting هنا، باش النسخة الجديدة تبقى "فحالة انتظار"
