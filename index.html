@@ -1372,11 +1372,14 @@ function renderMapList(){
   el.innerHTML = withLoc.map(m=>`<div class="sub-card" style="flex-direction:column;align-items:flex-start;gap:8px;">
     <div style="display:flex;align-items:center;gap:10px;width:100%;">
       <div class="sub-avatar">${(m.name[0]||'?')}</div>
-      <div class="sub-info">
+      <div class="sub-info" style="flex:1;">
         <div class="name">${escH(m.name)}</div>
         <div class="meta">${escH(m.meter)} · ${Number(m.lat).toFixed(6)}, ${Number(m.lng).toFixed(6)} · ±${m.locAccuracy||'?'}م</div>
       </div>
     </div>
+    <a href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:7px;width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;background:var(--blue);color:#fff;text-decoration:none;font-weight:700;font-size:12px;">
+      📍 فتح الموقع على الخريطة
+    </a>
   </div>`).join('');
 }
 
