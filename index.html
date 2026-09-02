@@ -430,7 +430,7 @@ main{flex:1;overflow-y:auto;}
     <!-- MAP TAB — المواقع -->
     <div id="tab-map" class="view">
       <div style="padding:12px 14px 4px;font-size:13px;font-weight:700;color:var(--muted);">
-        مواقع الزبائن المسجّلة — اضغط على الزر لفتح Google Maps
+        مواقع الزبائن المسجّلة
       </div>
       <div id="mapList"></div>
     </div>
@@ -1369,51 +1369,23 @@ function renderMapList(){
     el.innerHTML = `<div class="empty-state"><div class="ico">📍</div><p>لا توجد مواقع مسجّلة بعد.<br>افتح أي زبون واضغط "تسجيل الموقع الآن".</p></div>`;
     return;
   }
-  el.innerHTML = withLoc.map(m=>{
-    const mapsUrl = `https://www.google.com/maps?q=${m.lat},${m.lng}`;
-    return `<div class="sub-card" style="flex-direction:column;align-items:flex-start;gap:8px;">
-      <div style="display:flex;align-items:center;gap:10px;width:100%;">
-        <div class="sub-avatar">${(m.name[0]||'?')}</div>
-        <div class="sub-info">
-          <div class="name">${escH(m.name)}</div>
-          <div class="meta">${escH(m.meter)} · ±${m.locAccuracy||'?'}م</div>
-        </div>
+  el.innerHTML = withLoc.map(m=>`<div class="sub-card" style="flex-direction:column;align-items:flex-start;gap:8px;">
+    <div style="display:flex;align-items:center;gap:10px;width:100%;">
+      <div class="sub-avatar">${(m.name[0]||'?')}</div>
+      <div class="sub-info">
+        <div class="name">${escH(m.name)}</div>
+        <div class="meta">${escH(m.meter)} · ${Number(m.lat).toFixed(6)}, ${Number(m.lng).toFixed(6)} · ±${m.locAccuracy||'?'}م</div>
       </div>
-      <a href="${mapsUrl}" target="_blank" style="
-        display:flex;align-items:center;gap:7px;width:100%;
-        background:#1A73E8;color:#fff;border-radius:9px;
-        padding:10px 14px;text-decoration:none;font-weight:700;font-size:13.5px;
-        box-sizing:border-box;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-          <circle cx="12" cy="9" r="2.5"/>
-        </svg>
-        فتح موقع ${escH(m.name)} على Google Maps
-      </a>
-    </div>`;
-  }).join('');
+    </div>
+  </div>`).join('');
 }
 
 function renderMapLink(m){
-  if(!m || !m.lat || !m.lng) return;
-  const mapsUrl = `https://www.google.com/maps?q=${m.lat},${m.lng}`;
-  const btnHtml = `
-    <a href="${mapsUrl}" target="_blank" style="
-      display:flex;align-items:center;gap:8px;
-      background:#1A73E8;color:#fff;border-radius:8px;
-      padding:9px 14px;text-decoration:none;font-weight:700;font-size:13px;width:fit-content;">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2">
-        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-        <circle cx="12" cy="9" r="2.5"/>
-      </svg>
-      فتح على خريطة Google
-    </a>`;
+  // الموقع يُحفظ ويُعرض كإحداثيات فقط؛ لا نعرض أزرار Google Maps.
   const mapWrap = document.getElementById('mapLinkWrap');
-  if(mapWrap) mapWrap.innerHTML = btnHtml;
+  if(mapWrap) mapWrap.innerHTML = '';
   const locHeader = document.getElementById('locBtnHeader');
-  if(locHeader) locHeader.innerHTML = btnHtml;
-  const oldLocBtn = document.getElementById('locBtn');
-  if(oldLocBtn) oldLocBtn.remove();
+  if(locHeader) locHeader.innerHTML = '';
 }
 
 function renderLocationBtn(m){
@@ -1925,12 +1897,11 @@ async function exportResultsZip(){
   let locRows = '';
   for(const m of meters){
     if(m.lat && m.lng){
-      const mapsUrl = `https://www.google.com/maps?q=${m.lat},${m.lng}`;
       locRows += `<tr>
         <td>${m.meter}</td>
         <td>${m.name}</td>
         <td>${m.address||'—'}</td>
-        <td><a href="${mapsUrl}" style="color:#1A73E8;font-weight:bold;">📍 فتح الخريطة</a></td>
+        <td>📍 ${Number(m.lat).toFixed(6)}, ${Number(m.lng).toFixed(6)}</td>
       </tr>`;
     }
   }
@@ -1951,7 +1922,7 @@ async function exportResultsZip(){
 <body>
 <h2>📍 مواقع الزبائن</h2>
 <table>
-  <tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الموقع</th></tr>
+  <tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>إحداثيات الموقع</th></tr>
   ${locRows}
 </table>
 </body></html>`;
