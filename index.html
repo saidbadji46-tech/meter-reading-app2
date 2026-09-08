@@ -13,8 +13,9 @@
 <link rel="apple-touch-icon" href="https://saidbadji46-tech.github.io/meter-reading-app2/icon-192x192.png">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
-<script src="vendor/jszip.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 :root{
   --blue:#1565C0;
@@ -371,7 +372,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
 .alert-pill{font-size:10px;border-radius:20px;padding:3px 7px;background:#FFF3E0;color:var(--warning);font-weight:800}
 .archive-card{margin:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px;box-shadow:var(--shadow)}
 .archive-actions{display:flex;gap:7px;margin-top:9px}.archive-actions button{flex:1}
-#reportModal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100000;display:none;align-items:stretch;justify-content:center;padding:0}#reportModal.show{display:flex}#reportModal .report-shell{width:min(100%,760px);height:100%;background:#fff;display:flex;flex-direction:column}#reportModal .report-head{height:54px;flex:0 0 54px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--blue);color:#fff}#reportModal .report-head button{border:0;border-radius:9px;padding:9px 12px;font-weight:800}#reportModal iframe{width:100%;height:100%;border:0;background:#fff;flex:1}#exportProgress{position:fixed;left:12px;right:12px;bottom:76px;z-index:100001;display:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:0 8px 30px #0003}#exportProgress.show{display:block}#exportProgress .ep-title{font-weight:900;font-size:13px;margin-bottom:7px}#exportProgress .ep-bar{height:7px;border-radius:5px;background:var(--line);overflow:hidden}#exportProgress .ep-fill{height:100%;width:0;background:var(--blue);transition:width .15s ease}#exportProgress .ep-text{font-size:11px;color:var(--muted);margin-top:5px}#splash{position:fixed;inset:0;background:linear-gradient(145deg,var(--blue-dark),var(--blue));color:#fff;display:flex;align-items:center;justify-content:center;z-index:200;transition:opacity .35s ease;pointer-events:none;animation:splashAutoHide 1.6s ease forwards}.splash-box{text-align:center}.splash-logo{width:82px;height:82px;border-radius:24px;background:#fff1;display:flex;align-items:center;justify-content:center;font-size:42px;margin:auto;box-shadow:0 10px 30px #0003}.splash-title{font-size:23px;font-weight:900;margin-top:14px}.splash-sub{font-size:12px;opacity:.8;margin-top:5px}.splash-loader{width:150px;height:4px;background:#ffffff33;border-radius:5px;overflow:hidden;margin:22px auto 0}.splash-loader span{display:block;height:100%;width:35%;background:#fff;border-radius:5px;animation:splashload 1.1s infinite}.skeleton{background:linear-gradient(90deg,var(--surface),#fff,var(--surface));background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:9px}.skeleton-row{height:82px;margin:7px 0}@keyframes shimmer{to{background-position:-200% 0}}@keyframes splashload{0%{transform:translateX(0)}100%{transform:translateX(430%)}}@keyframes splashAutoHide{0%{opacity:1;visibility:visible}75%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
+#reportModal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100000;display:none;align-items:stretch;justify-content:center;padding:0}#reportModal.show{display:flex}#reportModal .report-shell{width:min(100%,760px);height:100%;background:#fff;display:flex;flex-direction:column}#reportModal .report-head{height:54px;flex:0 0 54px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--blue);color:#fff}#reportModal .report-head button{border:0;border-radius:9px;padding:9px 12px;font-weight:800}#reportModal iframe{width:100%;height:100%;border:0;background:#fff;flex:1}#exportProgress{position:fixed;left:12px;right:12px;bottom:76px;z-index:100001;display:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:0 8px 30px #0003}#exportProgress.show{display:block}#exportProgress .ep-title{font-weight:900;font-size:13px;margin-bottom:7px}#exportProgress .ep-bar{height:7px;border-radius:5px;background:var(--line);overflow:hidden}#exportProgress .ep-fill{height:100%;width:0;background:var(--blue);transition:width .15s ease}#exportProgress .ep-text{font-size:11px;color:var(--muted);margin-top:5px}#splash{position:fixed;inset:0;background:linear-gradient(145deg,var(--blue-dark),var(--blue));color:#fff;display:flex;align-items:center;justify-content:center;z-index:200;transition:opacity .35s ease}.splash-box{text-align:center}.splash-logo{width:82px;height:82px;border-radius:24px;background:#fff1;display:flex;align-items:center;justify-content:center;font-size:42px;margin:auto;box-shadow:0 10px 30px #0003}.splash-title{font-size:23px;font-weight:900;margin-top:14px}.splash-sub{font-size:12px;opacity:.8;margin-top:5px}.splash-loader{width:150px;height:4px;background:#ffffff33;border-radius:5px;overflow:hidden;margin:22px auto 0}.splash-loader span{display:block;height:100%;width:35%;background:#fff;border-radius:5px;animation:splashload 1.1s infinite}.skeleton{background:linear-gradient(90deg,var(--surface),#fff,var(--surface));background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:9px}.skeleton-row{height:82px;margin:7px 0}@keyframes shimmer{to{background-position:-200% 0}}@keyframes splashload{0%{transform:translateX(0)}100%{transform:translateX(430%)}}
 .signature-box{border:1.5px dashed var(--line);border-radius:12px;background:#fff;overflow:hidden}.signature-box canvas{display:block;width:100%;height:150px;touch-action:none}.signature-tools{display:flex;gap:7px;padding:7px;border-top:1px solid var(--line);background:var(--surface)}
 .scan-video{width:100%;height:250px;object-fit:cover;border-radius:12px;background:#000}.scan-frame{position:absolute;left:12%;right:12%;top:32%;height:36%;border:2px solid #fff;border-radius:12px;box-shadow:0 0 0 999px #0005;pointer-events:none}
 .pin-overlay{position:fixed;inset:0;background:rgba(15,23,42,.97);z-index:190;display:none;align-items:center;justify-content:center;padding:20px}.pin-overlay.show{display:flex}.pin-box{width:min(360px,100%);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:0 20px 50px #0006;text-align:center}.pin-dots{display:flex;justify-content:center;gap:10px;margin:16px}.pin-dot{width:12px;height:12px;border-radius:50%;background:var(--line)}.pin-dot.on{background:var(--blue)}.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.pin-key{padding:15px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:18px;font-weight:800;color:var(--ink)}
@@ -824,58 +825,34 @@ async function safeSet(k,v){ try{ await idbSetRaw(k,v); return true; }catch(e){ 
 async function safeDelete(k){ try{ await idbDeleteRaw(k); }catch(e){} }
 
 async function loadData(){
-  // Render the interface immediately. Do not make the whole application wait for IndexedDB.
-  // This is important on Android/PWA when storage is slow or temporarily unavailable.
+  const m = await sg('meters'); meters = m ? JSON.parse(m) : [];
+  // Restore serials previously extracted during import, even for customers
+  // that already existed before the import.
   try{
-    document.getElementById('mRouteNum').value = settings.routeNum;
-    document.getElementById('mTriplet').value = String(settings.triplet||'1');
-    document.getElementById('mWorkerName').value = settings.worker||'';
-    document.getElementById('mPrice').value = settings.price;
-    document.getElementById('mCurrency').value = settings.currency;
-    document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
-    document.getElementById('topBadge').textContent = settings.routeNum;
-    renderAll();
-  }catch(e){ console.error('initial render failed',e); }
-  const splash=document.getElementById('splash');
-  if(splash){ splash.style.opacity='0'; setTimeout(()=>splash.remove(),450); }
-
-  // Load saved data in the background, with a safety timeout so the UI never gets stuck.
-  const timeout = (promise, ms=3500) => Promise.race([promise, new Promise((_,reject)=>setTimeout(()=>reject(new Error('storage timeout')),ms))]);
-  try{
-    const m = await timeout(sg('meters')); 
-    if(m){ try{ meters = Array.isArray(m) ? m : JSON.parse(m); }catch(e){ meters=[]; console.warn('meters data invalid',e); } }
-  }catch(e){ console.warn('meters load skipped',e); }
-  try{
-    const sm = await timeout(sg('serialByMeter'));
+    const sm = await sg('serialByMeter');
     if(sm){
-      try{
-        const map = Array.isArray(sm) ? sm : (JSON.parse(sm)||{});
-        let changed=false;
-        meters.forEach(x=>{ const key=String(x.meter||'').trim().toUpperCase(); if(key && !x.meterSerial && map[key]){x.meterSerial=String(map[key]);changed=true;} });
-        if(changed) await saveMeters();
-      }catch(e){ console.warn('serial map skipped',e); }
+      const map = JSON.parse(sm) || {};
+      let changed = false;
+      meters.forEach(x=>{
+        const key = String(x.meter||'').trim().toUpperCase();
+        if(key && !x.meterSerial && map[key]){ x.meterSerial = String(map[key]); changed = true; }
+      });
+      if(changed) await saveMeters();
     }
-  }catch(e){ console.warn('serial storage skipped',e); }
-  try{
-    const sv = await timeout(sg('settings'));
-    if(sv){ try{ settings=Object.assign(settings, Array.isArray(sv)?{}:JSON.parse(sv)); }catch(e){ console.warn('settings invalid',e); } }
-  }catch(e){ console.warn('settings load skipped',e); }
-  try{
-    const av = await timeout(sg('roundArchives'));
-    if(av){ try{ roundArchives=Array.isArray(av)?av:(JSON.parse(av)||[]); }catch(e){ roundArchives=[]; } }
-  }catch(e){ roundArchives=[]; }
+  }catch(e){}
+  const s = await sg('settings'); if(s){ settings=Object.assign(settings, JSON.parse(s)); }
+  try{ const a=await sg('roundArchives'); roundArchives=a?JSON.parse(a):[]; }catch(e){ roundArchives=[]; }
+  if(settings.darkMode) document.body.classList.add('dark');
   currentRoundCreatedAt = settings.currentRoundCreatedAt || Date.now();
-  try{
-    document.getElementById('mRouteNum').value = settings.routeNum;
-    document.getElementById('mTriplet').value = String(settings.triplet||'1');
-    document.getElementById('mWorkerName').value = settings.worker||'';
-    document.getElementById('mPrice').value = settings.price;
-    document.getElementById('mCurrency').value = settings.currency;
-    document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
-    document.getElementById('topBadge').textContent = settings.routeNum;
-    if(settings.darkMode) document.body.classList.add('dark');
-    renderAll();
-  }catch(e){ console.error('post-load render failed',e); }
+  document.getElementById('mRouteNum').value = settings.routeNum;
+  document.getElementById('mTriplet').value = String(settings.triplet||'1');
+  document.getElementById('mWorkerName').value = settings.worker||'';
+  document.getElementById('mPrice').value = settings.price;
+  document.getElementById('mCurrency').value = settings.currency;
+  document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
+  document.getElementById('topBadge').textContent = settings.routeNum;
+  renderAll();
+  setTimeout(()=>{const sp=document.getElementById('splash');if(sp){sp.style.opacity='0';setTimeout(()=>sp.remove(),400);}},700);
   setTimeout(showPinOverlay,750);
 }
 async function saveMeters(){ await ss('meters', JSON.stringify(meters)); }
@@ -1076,72 +1053,26 @@ async function archiveCurrentRound(silent=false){
   roundArchives.unshift(snap); if(roundArchives.length>50)roundArchives=roundArchives.slice(0,50); await ss('roundArchives',JSON.stringify(roundArchives)); if(!silent)toast('🗂️ تم حفظ الجولة في الأرشيف'); renderArchive();return snap;
 }
 function renderArchive(){const el=document.getElementById('archiveList');if(!el)return;if(!roundArchives.length){el.innerHTML='<div class="empty-state"><div class="ico">🗂️</div><p>لا توجد جولات سابقة بعد.</p></div>';return;}el.innerHTML=roundArchives.map(a=>`<div class="archive-card"><div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:15px;font-weight:900;color:var(--blue)">${escH(a.route)}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">${new Date(a.completedAt).toLocaleString('ar-DZ')}</div></div><span class="chip chip-done">${a.stats.done}/${a.stats.total} مرفوعة</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px"><div class="stat-box" style="padding:8px"><b>${a.stats.total}</b><div class="lbl">زبون</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.consumption}</b><div class="lbl">م³</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.anom}</b><div class="lbl">إشارات</div></div></div><div class="archive-actions"><button class="btn-prim" onclick="openArchivedReport('${a.id}')">📋 التقرير</button><button class="btn-ghost" onclick="restoreArchive('${a.id}')">♻️ استرجاع</button></div></div>`).join('');}
-/* ====== REPORT + FILE EXPORT (robust Android/Chrome) ====== */
-function buildRouteReportHtml(){
-  const st=archiveStats(meters);
-  const totalConsumption=meters.filter(m=>m.status==='done').reduce((s,m)=>s+(Number(m.consumption)||0),0);
-  const rows=meters.map((m,i)=>{
-    const status=m.status==='done'?'مرفوعة':m.status==='anom'?'إشارة':'معلّقة';
-    const loc=(m.lat!=null&&m.lng!=null)?`<a href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank">📍 فتح الموقع</a>`:'—';
-    return `<tr><td>${i+1}</td><td>${escH(m.meter)}</td><td>${escH(m.name||'')}</td><td>${escH(m.address||'')}</td><td>${m.newIndex!=null?escH(m.newIndex):'—'}</td><td>${escH(m.consumption??'—')}</td><td>${escH(status)}</td><td>${loc}</td></tr>`;
-  }).join('');
-  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير الجولة ${escH(getRouteExportName())}</title><style>
-  *{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;margin:0;background:#f4f6f8;color:#222;padding:18px}.head{background:#1565C0;color:#fff;border-radius:16px;padding:20px;text-align:center}.head h1{margin:0 0 7px;font-size:24px}.meta{font-size:13px;opacity:.9}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}.card{background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px #0001}.num{font-size:23px;font-weight:900;color:#1565C0}.lbl{font-size:12px;color:#777;margin-top:4px}table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}th{background:#1565C0;color:#fff;padding:10px;font-size:12px}td{padding:9px;border-bottom:1px solid #eee;font-size:11px}a{color:#1565C0;font-weight:800;text-decoration:none}.foot{margin-top:15px;color:#777;font-size:11px;text-align:center}@media(max-width:650px){.stats{grid-template-columns:repeat(2,1fr)}body{padding:10px}th,td{padding:7px 5px}}
-  @media print{body{background:#fff;padding:0}.head{border-radius:0}.card{box-shadow:none}a{color:#000;text-decoration:none}}
-  </style></head><body><section class="head"><h1>📋 تقرير الجولة</h1><div class="meta">الجولة: <b>${escH(getRouteExportName())}</b> · العامل: ${escH(settings.worker||'—')} · ${new Date().toLocaleString('ar-DZ')}</div></section>
-  <div class="stats"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي الزبائن</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${totalConsumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${meters.filter(m=>m.lat!=null&&m.lng!=null).length}</div><div class="lbl">GPS</div></div><div class="card"><div class="num">${meters.filter(m=>m.hasPhoto).length}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${meters.filter(m=>m.signatureData).length}</div><div class="lbl">توقيعات</div></div></div>
-  <table><thead><tr><th>#</th><th>الرمز</th><th>الاسم</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th></tr></thead><tbody>${rows}</tbody></table><div class="foot">تقرير مولد من تطبيق قراءات العدادات · ${new Date().toLocaleString('ar-DZ')}</div></body></html>`;
-}
 function showReportHtml(html, printAfter=false){
   const modal=document.getElementById('reportModal'), frame=document.getElementById('reportFrame');
-  if(!modal||!frame){toast('تعذر فتح نافذة التقرير');return;}
-  modal.style.display='flex';modal.classList.add('show');modal.setAttribute('aria-hidden','false');
-  frame.onload=()=>{if(printAfter)setTimeout(()=>{try{frame.contentWindow.focus();frame.contentWindow.print();}catch(e){toast('تعذر تشغيل الطباعة');}},300)};
+  if(!modal||!frame){ toast('تعذر فتح نافذة التقرير'); return; }
+  modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
+  frame.onload=()=>{ if(printAfter) setTimeout(()=>{try{frame.contentWindow.print();}catch(e){}},350); };
   frame.srcdoc=html;
 }
-function closeReportModal(){const modal=document.getElementById('reportModal');if(modal){modal.classList.remove('show');modal.style.display='none';modal.setAttribute('aria-hidden','true')}const f=document.getElementById('reportFrame');if(f)f.srcdoc='';}
-function printReportModal(){const f=document.getElementById('reportFrame');if(f&&f.contentWindow){try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast('تعذر تشغيل الطباعة')}}}
-function openArchivedReport(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;const oldM=meters,oldS=settings;meters=a.meters;settings=a.settings;const html=buildRouteReportHtml();meters=oldM;settings=oldS;showReportHtml(html,false)}
-function openRouteReport(){if(!meters.length){toast('لا توجد بيانات لإنشاء التقرير');return}showReportHtml(buildRouteReportHtml(),false)}
-function printRouteReport(){if(!meters.length){toast('لا توجد بيانات لإنشاء التقرير');return}showReportHtml(buildRouteReportHtml(),true)}
-
-async function getExportDirectory(){
-  let h=null;
-  try{h=await idbGetRaw('exportDirHandle');}catch(e){}
-  if(h){try{const p=await h.queryPermission({mode:'readwrite'});if(p==='granted')return h;const r=await h.requestPermission({mode:'readwrite'});if(r==='granted')return h;}catch(e){}}
-  if(window.showDirectoryPicker){
-    h=await window.showDirectoryPicker({id:'ADE_EXPORT',mode:'readwrite'});
-    await idbSetRaw('exportDirHandle',h);
-    return h;
-  }
-  return null;
+function closeReportModal(){const modal=document.getElementById('reportModal');if(modal){modal.classList.remove('show');modal.setAttribute('aria-hidden','true');}const f=document.getElementById('reportFrame');if(f)f.srcdoc='';}
+function printReportModal(){const f=document.getElementById('reportFrame');if(f&&f.contentWindow)try{f.contentWindow.print();}catch(e){toast('تعذر تشغيل الطباعة');}}
+function openArchivedReport(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;const oldM=meters,oldS=settings;meters=a.meters;settings=a.settings;const html=buildRouteReportHtml();meters=oldM;settings=oldS;showReportHtml(html,false);}
+async function restoreArchive(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;if(!confirm('استرجاع هذه الجولة سيستبدل الجولة الحالية. هل تريد المتابعة؟'))return;meters=JSON.parse(JSON.stringify(a.meters));settings=Object.assign(settings,JSON.parse(JSON.stringify(a.settings)));await saveMeters();await saveSettings3();renderAll();toast('♻️ تم استرجاع الجولة');}
+async function archiveAndStartNewRound(){const a=await archiveCurrentRound(false);if(!a)return;meters=[];settings.routeNum='T00001';settings.currentRoundCreatedAt=Date.now();currentRoundCreatedAt=settings.currentRoundCreatedAt;await saveMeters();await saveSettings3();document.getElementById('mRouteNum').value=settings.routeNum;document.getElementById('topBadge').textContent=settings.routeNum;renderAll();toast('➕ تم فتح جولة جديدة');}
+function openRouteReport(){
+  if(!meters.length){ toast('لا توجد بيانات لإنشاء التقرير'); return; }
+  showReportHtml(buildRouteReportHtml(),false);
 }
-async function saveExportToCliente(blob,fileName){
-  // Preferred: File System Access API. User selects Stockage interne once; ADE is created automatically.
-  try{
-    const root=await getExportDirectory();
-    if(root){
-      const ade=await root.getDirectoryHandle('ADE',{create:true});
-      const route=await ade.getDirectoryHandle(getRouteExportName(),{create:true});
-      const fh=await route.getFileHandle(fileName,{create:true});
-      const w=await fh.createWritable();await w.write(blob);await w.close();
-      return true;
-    }
-  }catch(e){console.warn('direct storage export unavailable',e)}
-  // Safe fallback when directory access is unavailable.
-  try{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fileName;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);toast('تم تنزيل الملف إلى مجلد التنزيلات');return true}catch(e){console.error(e);return false}
+function printRouteReport(){
+  if(!meters.length){ toast('لا توجد بيانات لإنشاء التقرير'); return; }
+  showReportHtml(buildRouteReportHtml(),true);
 }
-async function exportTXT(){
-  if(!meters.length){toast('لا توجد بيانات لتصديرها');return false}
-  try{
-    const headers=['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];
-    const lines=[headers.join('\t')];
-    meters.forEach(m=>lines.push([m.meter,m.meterSerial||'',m.name,m.address||'',m.subType||'',m.phone||'',m.prevIndex,m.newIndex!=null?m.newIndex:'',m.consumption||'',m.amount||'',m.status,m.annot||'',m.lowReadingReason||'',(m.obs||'').replace(/\t|\n/g,' '),m.hasPhoto?'1':'0',m.savedAt||''].join('\t')));
-    const ok=await saveExportToCliente(new Blob(['\uFEFF'+lines.join('\n')],{type:'text/plain;charset=utf-8'}),`${getRouteExportName()}.txt`);
-    if(ok)toast('✅ تم تصدير TXT');return ok;
-  }catch(e){console.error(e);toast('⚠️ تعذر تصدير TXT');return false}
-}
-
 function setExportProgress(title,pct,text){const box=document.getElementById('exportProgress');if(!box)return;box.classList.add('show');document.getElementById('epTitle').textContent=title||'جاري تجهيز الملف...';document.getElementById('epFill').style.width=Math.max(0,Math.min(100,pct||0))+'%';document.getElementById('epText').textContent=text||Math.round(pct||0)+'%';}
 function hideExportProgress(){const box=document.getElementById('exportProgress');if(box)box.classList.remove('show');}
 async function exportCompleteRound(){
@@ -1250,18 +1181,18 @@ function setupPin(){pinBuffer='';pinMode='setup1';document.getElementById('pinMs
 async function disablePin(){if(!settings.pinHash){toast('PIN غير مفعّل');return;}if(confirm('إلغاء قفل PIN؟')){delete settings.pinHash;await saveSettings3();toast('🔓 تم إلغاء PIN');}}
 
 /* ====== INIT ====== */
-window.addEventListener('error', e=>{
-  console.error('ADE app error', e.error || e.message);
-  const splash=document.getElementById('splash');
-  if(splash){ splash.style.opacity='0'; setTimeout(()=>splash.remove(),300); }
-});
-window.addEventListener('unhandledrejection', e=>console.error('ADE app rejection', e.reason));
-setTimeout(()=>{const sp=document.getElementById('splash');if(sp){sp.style.opacity='0';sp.style.visibility='hidden';sp.style.pointerEvents='none';}},1800);
-try{loadData();}catch(e){console.error('ADE boot failed',e);const sp=document.getElementById('splash');if(sp){sp.style.opacity='0';sp.style.visibility='hidden';sp.style.pointerEvents='none';}}
+loadData();
 </script>
 
 <script>
 if ('serviceWorker' in navigator) {
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(reg => {
       reg.update().catch(()=>{});
