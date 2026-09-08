@@ -1,45 +1,33 @@
-const CACHE_NAME = 'meter-reading-v10-offline';
-const APP_SHELL = [
-  './', './index.html', './manifest.json', './icon-192x192.png', './icon-512x512.png',
-  './vendor/jszip.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
-  'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=IBM+Plex+Mono:wght@600;700&display=swap'
-];
+// Service Worker - يخزن التطبيق للعمل بلا انترنت، ويسولك قبل ما يبدل لنسخة جديدة
+const CACHE_NAME = "meter-reading-app-v7";
 
-self.addEventListener('install', event => {
+self.addEventListener('install', () => {
+  /* ماندير-وش skipWaiting هنا، باش النسخة الجديدة تبقى "فحالة انتظار"
+     حتى المستخدم يأكد التحديث بنفسو */
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(async cache => {
-      for (const url of APP_SHELL) {
-        try { await cache.add(url); } catch (e) { console.warn('Offline cache skipped:', url); }
-      }
-    }).then(() => self.skipWaiting())
+    caches.keys().then(names =>
+      Promise.all(names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n)))
+    ).then(() => clients.claim())
   );
 });
 
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
+self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
-        if (response && (response.ok || response.type === 'opaque')) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(()=>{});
-        }
-        return response;
-      }).catch(() => {
-        if (event.request.mode === 'navigate') return caches.match('./index.html');
-        return new Response('', {status: 503, statusText: 'Offline'});
+    fetch(event.request).then((response) => {
+      const resClone = response.clone();
+      caches.open(CACHE_NAME).then((cache) => {
+        if (event.request.method === 'GET') cache.put(event.request, resClone);
       });
-    })
+      return response;
+    }).catch(() => caches.match(event.request))
   );
 });
