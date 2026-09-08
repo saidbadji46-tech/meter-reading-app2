@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meter-reading-v21-pro';
+const CACHE_NAME = 'meter-reading-v22-pro';
 const APP_SHELL = [
   './', './index.html', './manifest.json', './icon-192x192.png', './icon-512x512.png',
   './vendor/jszip.min.js',

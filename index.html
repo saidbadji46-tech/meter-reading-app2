@@ -2061,7 +2061,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=21');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=22');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -2075,7 +2075,7 @@ try{toast('1/4 تجهيز Excel...');const rows=meters.map(m=>({'رمز الزب
 const ws=XLSX.utils.json_to_sheet(rows);const headers=Object.keys(rows[0]||{});ws['!cols']=headers.map(h=>{let ml=String(h).length;for(const r of rows)ml=Math.max(ml,String(r[h]??'').length);return{wch:Math.min(55,Math.max(10,ml+2))};});const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'القراءات');const xlsxOut=XLSX.write(wb,{type:'array',bookType:'xlsx'});const zip=new JSZip(),route=getRouteExportName();
 const heads=['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];const lines=[heads.join('\\t')];meters.forEach(m=>lines.push([m.meter,m.meterSerial||'',m.name||'',m.address||'',m.subType||'',m.phone||'',m.prevIndex??'',m.newIndex??'',m.consumption??'',m.amount??'',m.status||'',m.annot||'',m.lowReadingReason||'',(m.obs||'').replace(/\\t|\\n/g,' '),m.hasPhoto?'1':'0',m.savedAt||''].join('\\t')));zip.file(`${route}.txt`,'\\uFEFF'+lines.join('\\n'));zip.file('client.xlsx',xlsxOut);
 toast('2/4 إضافة الصور...');const photos=zip.folder('الصور');let photoCount=0;for(const m of meters){if(!m.hasPhoto)continue;try{const d=await Promise.race([sg('photo:'+m.id),new Promise(r=>setTimeout(()=>r(null),5000))]);if(d&&d.includes(',')){photos.file(`${m.meter||m.id}.jpg`,d.split(',')[1],{base64:true});photoCount++;}}catch(e){}}
-toast('3/4 إضافة المواقع والتقرير...');const locRows=meters.filter(m=>m.lat&&m.lng).map(m=>`<tr><td>${m.meter||''}</td><td>${m.name||''}</td><td>${m.address||''}</td><td>${m.lat}, ${m.lng}</td></tr>`).join('');zip.file('المواقع.html',`<!doctype html><html dir="rtl"><meta charset="utf-8"><title>المواقع</title><h2>المواقع المسجلة</h2><table border="1" cellpadding="6"><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الإحداثيات</th></tr>${locRows}</table></html>`);zip.file('تقرير الجولة.html',buildRouteReportHtml());
+toast('3/4 إضافة المواقع والتقرير...');const locRows=meters.filter(m=>m.lat&&m.lng).map(m=>`<tr><td>${escH(m.meter||'')}</td><td>${escH(m.name||'')}</td><td>${escH(m.address||'')}</td><td>${Number(m.lat).toFixed(6)}, ${Number(m.lng).toFixed(6)}</td><td><a class="pin" href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank" rel="noopener">📍 فتح الخريطة</a></td></tr>`).join('');zip.file('المواقع.html',`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>مواقع الزبائن</title><style>body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#f4f6f8;margin:0;padding:20px;color:#1a1a1a;}h2{color:#1565c0;margin:0 0 16px;}table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);}th{background:#1565c0;color:#fff;padding:12px 10px;font-size:13px;text-align:right;}td{padding:11px 10px;border-top:1px solid #eee;font-size:13px;text-align:right;}tr:nth-child(even){background:#fafbfc;}a.pin{display:inline-block;padding:7px 14px;background:#1565c0;color:#fff;text-decoration:none;border-radius:7px;font-weight:700;font-size:12px;white-space:nowrap;}a.pin:hover{background:#0d47a1;}</style></head><body><h2>📍 مواقع الزبائن (${meters.filter(m=>m.lat&&m.lng).length})</h2><table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الإحداثيات</th><th>الموقع</th></tr>${locRows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#888;">لا توجد مواقع مسجّلة</td></tr>'}</table></body></html>`);zip.file('تقرير الجولة.html',buildRouteReportHtml());
 toast('4/4 ضغط الملف...');const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6},streamFiles:true},meta=>{if(meta&&meta.percent)toast(`4/4 ضغط الملف ${Math.round(meta.percent)}%...`);});await saveExportToCliente(blob,`${route}.zip`);toast(`✅ تم تصدير ZIP: ${route} (${photoCount} صورة)`);return true;
 }catch(err){console.error(err);toast('❌ فشل تصدير ZIP: '+(err&&err.message?err.message:'خطأ غير معروف'));return false;}}
 
@@ -2127,7 +2127,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=21').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=22').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
