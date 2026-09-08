@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meter-reading-v13';
+const CACHE_NAME = 'meter-reading-v10-offline';
 const APP_SHELL = [
   './', './index.html', './manifest.json', './icon-192x192.png', './icon-512x512.png',
   './vendor/jszip.min.js',
@@ -6,10 +6,6 @@ const APP_SHELL = [
   'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
   'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=IBM+Plex+Mono:wght@600;700&display=swap'
 ];
-
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
-});
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -31,17 +27,6 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  // Navigation requests prefer the network so a newly published index.html is seen immediately.
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy)).catch(()=>{});
-        return response;
-      }).catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
