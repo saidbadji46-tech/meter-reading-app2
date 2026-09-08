@@ -572,6 +572,7 @@ main{flex:1;overflow-y:auto;}
     <div>مديرية الجزائرية للمياه عين تموشنت</div>
     <div>الوكالة التجارية 1</div>
   </div>
+  <div style="text-align:center;font-size:10px;color:var(--muted);padding:5px 0;">نسخة احترافية v11 • Offline</div>
   <div class="manage-section">
     <div class="manage-card">
       <h3>📋 معلومات الجولة</h3>
@@ -2001,7 +2002,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=professional-11').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
