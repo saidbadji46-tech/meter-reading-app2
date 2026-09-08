@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meter-reading-v15-import-fix';
+const CACHE_NAME = 'meter-reading-v16-pro';
 const APP_SHELL = [
   './', './index.html', './manifest.json', './icon-192x192.png', './icon-512x512.png',
   './vendor/jszip.min.js',
