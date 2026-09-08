@@ -1053,26 +1053,72 @@ async function archiveCurrentRound(silent=false){
   roundArchives.unshift(snap); if(roundArchives.length>50)roundArchives=roundArchives.slice(0,50); await ss('roundArchives',JSON.stringify(roundArchives)); if(!silent)toast('🗂️ تم حفظ الجولة في الأرشيف'); renderArchive();return snap;
 }
 function renderArchive(){const el=document.getElementById('archiveList');if(!el)return;if(!roundArchives.length){el.innerHTML='<div class="empty-state"><div class="ico">🗂️</div><p>لا توجد جولات سابقة بعد.</p></div>';return;}el.innerHTML=roundArchives.map(a=>`<div class="archive-card"><div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:15px;font-weight:900;color:var(--blue)">${escH(a.route)}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">${new Date(a.completedAt).toLocaleString('ar-DZ')}</div></div><span class="chip chip-done">${a.stats.done}/${a.stats.total} مرفوعة</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px"><div class="stat-box" style="padding:8px"><b>${a.stats.total}</b><div class="lbl">زبون</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.consumption}</b><div class="lbl">م³</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.anom}</b><div class="lbl">إشارات</div></div></div><div class="archive-actions"><button class="btn-prim" onclick="openArchivedReport('${a.id}')">📋 التقرير</button><button class="btn-ghost" onclick="restoreArchive('${a.id}')">♻️ استرجاع</button></div></div>`).join('');}
+/* ====== REPORT + FILE EXPORT (robust Android/Chrome) ====== */
+function buildRouteReportHtml(){
+  const st=archiveStats(meters);
+  const totalConsumption=meters.filter(m=>m.status==='done').reduce((s,m)=>s+(Number(m.consumption)||0),0);
+  const rows=meters.map((m,i)=>{
+    const status=m.status==='done'?'مرفوعة':m.status==='anom'?'إشارة':'معلّقة';
+    const loc=(m.lat!=null&&m.lng!=null)?`<a href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank">📍 فتح الموقع</a>`:'—';
+    return `<tr><td>${i+1}</td><td>${escH(m.meter)}</td><td>${escH(m.name||'')}</td><td>${escH(m.address||'')}</td><td>${m.newIndex!=null?escH(m.newIndex):'—'}</td><td>${escH(m.consumption??'—')}</td><td>${escH(status)}</td><td>${loc}</td></tr>`;
+  }).join('');
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير الجولة ${escH(getRouteExportName())}</title><style>
+  *{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;margin:0;background:#f4f6f8;color:#222;padding:18px}.head{background:#1565C0;color:#fff;border-radius:16px;padding:20px;text-align:center}.head h1{margin:0 0 7px;font-size:24px}.meta{font-size:13px;opacity:.9}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}.card{background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px #0001}.num{font-size:23px;font-weight:900;color:#1565C0}.lbl{font-size:12px;color:#777;margin-top:4px}table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}th{background:#1565C0;color:#fff;padding:10px;font-size:12px}td{padding:9px;border-bottom:1px solid #eee;font-size:11px}a{color:#1565C0;font-weight:800;text-decoration:none}.foot{margin-top:15px;color:#777;font-size:11px;text-align:center}@media(max-width:650px){.stats{grid-template-columns:repeat(2,1fr)}body{padding:10px}th,td{padding:7px 5px}}
+  @media print{body{background:#fff;padding:0}.head{border-radius:0}.card{box-shadow:none}a{color:#000;text-decoration:none}}
+  </style></head><body><section class="head"><h1>📋 تقرير الجولة</h1><div class="meta">الجولة: <b>${escH(getRouteExportName())}</b> · العامل: ${escH(settings.worker||'—')} · ${new Date().toLocaleString('ar-DZ')}</div></section>
+  <div class="stats"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي الزبائن</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${totalConsumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${meters.filter(m=>m.lat!=null&&m.lng!=null).length}</div><div class="lbl">GPS</div></div><div class="card"><div class="num">${meters.filter(m=>m.hasPhoto).length}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${meters.filter(m=>m.signatureData).length}</div><div class="lbl">توقيعات</div></div></div>
+  <table><thead><tr><th>#</th><th>الرمز</th><th>الاسم</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th></tr></thead><tbody>${rows}</tbody></table><div class="foot">تقرير مولد من تطبيق قراءات العدادات · ${new Date().toLocaleString('ar-DZ')}</div></body></html>`;
+}
 function showReportHtml(html, printAfter=false){
   const modal=document.getElementById('reportModal'), frame=document.getElementById('reportFrame');
-  if(!modal||!frame){ toast('تعذر فتح نافذة التقرير'); return; }
-  modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
-  frame.onload=()=>{ if(printAfter) setTimeout(()=>{try{frame.contentWindow.print();}catch(e){}},350); };
+  if(!modal||!frame){toast('تعذر فتح نافذة التقرير');return;}
+  modal.style.display='flex';modal.classList.add('show');modal.setAttribute('aria-hidden','false');
+  frame.onload=()=>{if(printAfter)setTimeout(()=>{try{frame.contentWindow.focus();frame.contentWindow.print();}catch(e){toast('تعذر تشغيل الطباعة');}},300)};
   frame.srcdoc=html;
 }
-function closeReportModal(){const modal=document.getElementById('reportModal');if(modal){modal.classList.remove('show');modal.setAttribute('aria-hidden','true');}const f=document.getElementById('reportFrame');if(f)f.srcdoc='';}
-function printReportModal(){const f=document.getElementById('reportFrame');if(f&&f.contentWindow)try{f.contentWindow.print();}catch(e){toast('تعذر تشغيل الطباعة');}}
-function openArchivedReport(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;const oldM=meters,oldS=settings;meters=a.meters;settings=a.settings;const html=buildRouteReportHtml();meters=oldM;settings=oldS;showReportHtml(html,false);}
-async function restoreArchive(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;if(!confirm('استرجاع هذه الجولة سيستبدل الجولة الحالية. هل تريد المتابعة؟'))return;meters=JSON.parse(JSON.stringify(a.meters));settings=Object.assign(settings,JSON.parse(JSON.stringify(a.settings)));await saveMeters();await saveSettings3();renderAll();toast('♻️ تم استرجاع الجولة');}
-async function archiveAndStartNewRound(){const a=await archiveCurrentRound(false);if(!a)return;meters=[];settings.routeNum='T00001';settings.currentRoundCreatedAt=Date.now();currentRoundCreatedAt=settings.currentRoundCreatedAt;await saveMeters();await saveSettings3();document.getElementById('mRouteNum').value=settings.routeNum;document.getElementById('topBadge').textContent=settings.routeNum;renderAll();toast('➕ تم فتح جولة جديدة');}
-function openRouteReport(){
-  if(!meters.length){ toast('لا توجد بيانات لإنشاء التقرير'); return; }
-  showReportHtml(buildRouteReportHtml(),false);
+function closeReportModal(){const modal=document.getElementById('reportModal');if(modal){modal.classList.remove('show');modal.style.display='none';modal.setAttribute('aria-hidden','true')}const f=document.getElementById('reportFrame');if(f)f.srcdoc='';}
+function printReportModal(){const f=document.getElementById('reportFrame');if(f&&f.contentWindow){try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast('تعذر تشغيل الطباعة')}}}
+function openArchivedReport(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;const oldM=meters,oldS=settings;meters=a.meters;settings=a.settings;const html=buildRouteReportHtml();meters=oldM;settings=oldS;showReportHtml(html,false)}
+function openRouteReport(){if(!meters.length){toast('لا توجد بيانات لإنشاء التقرير');return}showReportHtml(buildRouteReportHtml(),false)}
+function printRouteReport(){if(!meters.length){toast('لا توجد بيانات لإنشاء التقرير');return}showReportHtml(buildRouteReportHtml(),true)}
+
+async function getExportDirectory(){
+  let h=null;
+  try{h=await idbGetRaw('exportDirHandle');}catch(e){}
+  if(h){try{const p=await h.queryPermission({mode:'readwrite'});if(p==='granted')return h;const r=await h.requestPermission({mode:'readwrite'});if(r==='granted')return h;}catch(e){}}
+  if(window.showDirectoryPicker){
+    h=await window.showDirectoryPicker({id:'ADE_EXPORT',mode:'readwrite'});
+    await idbSetRaw('exportDirHandle',h);
+    return h;
+  }
+  return null;
 }
-function printRouteReport(){
-  if(!meters.length){ toast('لا توجد بيانات لإنشاء التقرير'); return; }
-  showReportHtml(buildRouteReportHtml(),true);
+async function saveExportToCliente(blob,fileName){
+  // Preferred: File System Access API. User selects Stockage interne once; ADE is created automatically.
+  try{
+    const root=await getExportDirectory();
+    if(root){
+      const ade=await root.getDirectoryHandle('ADE',{create:true});
+      const route=await ade.getDirectoryHandle(getRouteExportName(),{create:true});
+      const fh=await route.getFileHandle(fileName,{create:true});
+      const w=await fh.createWritable();await w.write(blob);await w.close();
+      return true;
+    }
+  }catch(e){console.warn('direct storage export unavailable',e)}
+  // Safe fallback when directory access is unavailable.
+  try{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fileName;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);toast('تم تنزيل الملف إلى مجلد التنزيلات');return true}catch(e){console.error(e);return false}
 }
+async function exportTXT(){
+  if(!meters.length){toast('لا توجد بيانات لتصديرها');return false}
+  try{
+    const headers=['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];
+    const lines=[headers.join('\t')];
+    meters.forEach(m=>lines.push([m.meter,m.meterSerial||'',m.name,m.address||'',m.subType||'',m.phone||'',m.prevIndex,m.newIndex!=null?m.newIndex:'',m.consumption||'',m.amount||'',m.status,m.annot||'',m.lowReadingReason||'',(m.obs||'').replace(/\t|\n/g,' '),m.hasPhoto?'1':'0',m.savedAt||''].join('\t')));
+    const ok=await saveExportToCliente(new Blob(['\uFEFF'+lines.join('\n')],{type:'text/plain;charset=utf-8'}),`${getRouteExportName()}.txt`);
+    if(ok)toast('✅ تم تصدير TXT');return ok;
+  }catch(e){console.error(e);toast('⚠️ تعذر تصدير TXT');return false}
+}
+
 function setExportProgress(title,pct,text){const box=document.getElementById('exportProgress');if(!box)return;box.classList.add('show');document.getElementById('epTitle').textContent=title||'جاري تجهيز الملف...';document.getElementById('epFill').style.width=Math.max(0,Math.min(100,pct||0))+'%';document.getElementById('epText').textContent=text||Math.round(pct||0)+'%';}
 function hideExportProgress(){const box=document.getElementById('exportProgress');if(box)box.classList.remove('show');}
 async function exportCompleteRound(){
