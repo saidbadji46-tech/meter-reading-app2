@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="vendor/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 :root{
@@ -136,26 +136,6 @@ main{flex:1;overflow-y:auto;}
 .progress-info{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px;}
 .progress-track{height:5px;background:var(--line);border-radius:3px;overflow:hidden;}
 .progress-fill{height:100%;background:var(--success);border-radius:3px;transition:width .4s ease;}
-
-/* ===== ROUTE SUMMARY CARD (ملخص الجولة) ===== */
-.route-summary-card{
-  background:#fff;margin:10px 14px 0;padding:14px;
-  border-radius:12px;border:1px solid var(--line);
-  box-shadow:0 1px 4px rgba(0,0,0,0.05);
-}
-.rs-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.rs-pct{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:900;color:var(--blue);}
-.rs-title{font-size:13.5px;font-weight:800;color:var(--ink);}
-.rs-track{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:12px;}
-.rs-fill{height:100%;background:var(--blue);border-radius:3px;transition:width .4s ease;}
-.rs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.rs-item{background:var(--surface);border-radius:9px;padding:9px 4px;text-align:center;}
-.rs-val{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:800;display:block;color:var(--ink);}
-.rs-lbl{font-size:10.5px;color:var(--muted);font-weight:700;}
-.rs-item.rs-gps .rs-val{color:var(--blue);}
-.rs-item.rs-pending .rs-val{color:var(--muted);}
-.rs-item.rs-done .rs-val{color:var(--success);}
-.rs-item.rs-anom .rs-val{color:var(--warning);}
 
 .meter-row{
   background:var(--card);
@@ -403,21 +383,6 @@ main{flex:1;overflow-y:auto;}
 
     <!-- LIST VIEWS -->
     <div id="tab-all" class="view active">
-      <div class="route-summary-card" id="routeSummaryCard">
-        <div class="rs-top">
-          <span class="rs-pct" id="rsPct">0%</span>
-          <span class="rs-title">📊 ملخص الجولة</span>
-        </div>
-        <div class="rs-track"><div class="rs-fill" id="rsFill" style="width:0%"></div></div>
-        <div class="rs-grid">
-          <div class="rs-item rs-gps"><span class="rs-val" id="rsGps">0</span><span class="rs-lbl">GPS</span></div>
-          <div class="rs-item rs-pending"><span class="rs-val" id="rsPending">0</span><span class="rs-lbl">متبقي</span></div>
-          <div class="rs-item rs-done"><span class="rs-val" id="rsDone">0</span><span class="rs-lbl">مقروء</span></div>
-          <div class="rs-item rs-anom"><span class="rs-val" id="rsAnom">0</span><span class="rs-lbl">تنبيهات</span></div>
-          <div class="rs-item"><span class="rs-val" id="rsPhotos">0</span><span class="rs-lbl">صور</span></div>
-          <div class="rs-item"><span class="rs-val" id="rsCons">0</span><span class="rs-lbl">م³</span></div>
-        </div>
-      </div>
       <div class="progress-bar-wrap">
         <div class="progress-info">
           <span>التقدم في الجولة</span>
@@ -457,16 +422,15 @@ main{flex:1;overflow-y:auto;}
           <span class="chart-bar-cnt" id="cAnomCnt">0</span>
         </div>
       </div>
-      <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px;">
-        <button class="btn-prim" onclick="viewRouteReport()" style="width:100%;padding:13px;">📄 عرض تقرير الجولة</button>
-        <button class="btn-ghost" onclick="exportJSON()" style="width:100%;padding:13px;">تصدير نسخة احتياطية</button>
+      <div style="padding:0 14px 14px;">
+        <button class="btn-prim" onclick="exportJSON()" style="width:100%;padding:13px;">تصدير نسخة احتياطية</button>
       </div>
     </div>
 
     <!-- MAP TAB — المواقع -->
     <div id="tab-map" class="view">
       <div style="padding:12px 14px 4px;font-size:13px;font-weight:700;color:var(--muted);">
-        مواقع الزبائن المسجّلة
+        مواقع الزبائن المسجّلة — اضغط على الزر لفتح Google Maps
       </div>
       <div id="mapList"></div>
     </div>
@@ -629,14 +593,6 @@ main{flex:1;overflow-y:auto;}
       </p>
       <button class="btn-prim" onclick="exportTXT()" style="width:100%;padding:12px;margin-bottom:8px;">تصدير TXT للجولة</button>
       <button class="btn-ghost" onclick="exportResultsZip()" style="width:100%;padding:12px;">تصدير ZIP للجولة</button>
-    </div>
-    <div class="manage-card">
-      <h3>📄 تقرير الجولة</h3>
-      <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;">
-        تقرير مرحلي بصفحة واحدة (ملخص + جدول كامل بالزبائن)، يمكن عرضه أو طباعته PDF حتى قبل إنهاء الجولة.
-      </p>
-      <button class="btn-prim" onclick="viewRouteReport()" style="width:100%;padding:12px;margin-bottom:8px;">👁️ عرض / طباعة التقرير</button>
-      <button class="btn-ghost" onclick="saveRouteReport()" style="width:100%;padding:12px;">💾 حفظ التقرير (HTML)</button>
     </div>
     <div class="manage-card">
       <h3>💾 نسخة احتياطية كاملة</h3>
@@ -878,34 +834,6 @@ function renderAll(){
   renderListTo('listPending', pending);
   renderListTo('listAnom', anom);
   renderStats2(done, pending, anom);
-  renderRouteSummary(done, pending, anom);
-}
-
-/* ====== ROUTE SUMMARY CARD (ملخص الجولة) ====== */
-function computeRouteSummary(){
-  const total = meters.length;
-  const done = meters.filter(m=>m.status==='done');
-  const anom = meters.filter(m=>m.status==='anom');
-  const pending = meters.filter(m=>m.status!=='done'&&m.status!=='anom');
-  const gps = meters.filter(m=>m.lat && m.lng);
-  const photos = meters.filter(m=>m.hasPhoto);
-  const totalCons = meters.reduce((s,m)=> s + (m.newIndex!=null ? (Number(m.consumption)||0) : 0), 0);
-  const pct = total ? Math.round(done.length/total*100) : 0;
-  return {total, done, anom, pending, gps, photos, totalCons, pct};
-}
-
-function renderRouteSummary(done, pending, anom){
-  const s = computeRouteSummary();
-  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-  set('rsPct', s.pct+'%');
-  set('rsGps', s.gps.length);
-  set('rsPending', pending ? pending.length : s.pending.length);
-  set('rsDone', done ? done.length : s.done.length);
-  set('rsAnom', anom ? anom.length : s.anom.length);
-  set('rsPhotos', s.photos.length);
-  set('rsCons', s.totalCons.toFixed(2).replace(/\.00$/,''));
-  const fill = document.getElementById('rsFill');
-  if(fill) fill.style.width = s.pct+'%';
 }
 
 function doSearch(){
@@ -1441,26 +1369,51 @@ function renderMapList(){
     el.innerHTML = `<div class="empty-state"><div class="ico">📍</div><p>لا توجد مواقع مسجّلة بعد.<br>افتح أي زبون واضغط "تسجيل الموقع الآن".</p></div>`;
     return;
   }
-  el.innerHTML = withLoc.map(m=>`<div class="sub-card" style="flex-direction:column;align-items:flex-start;gap:8px;">
-    <div style="display:flex;align-items:center;gap:10px;width:100%;">
-      <div class="sub-avatar">${(m.name[0]||'?')}</div>
-      <div class="sub-info" style="flex:1;">
-        <div class="name">${escH(m.name)}</div>
-        <div class="meta">${escH(m.meter)} · ${Number(m.lat).toFixed(6)}, ${Number(m.lng).toFixed(6)} · ±${m.locAccuracy||'?'}م</div>
+  el.innerHTML = withLoc.map(m=>{
+    const mapsUrl = `https://www.google.com/maps?q=${m.lat},${m.lng}`;
+    return `<div class="sub-card" style="flex-direction:column;align-items:flex-start;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;width:100%;">
+        <div class="sub-avatar">${(m.name[0]||'?')}</div>
+        <div class="sub-info">
+          <div class="name">${escH(m.name)}</div>
+          <div class="meta">${escH(m.meter)} · ±${m.locAccuracy||'?'}م</div>
+        </div>
       </div>
-    </div>
-    <a href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:7px;width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;background:var(--blue);color:#fff;text-decoration:none;font-weight:700;font-size:12px;">
-      📍 فتح الموقع على الخريطة
-    </a>
-  </div>`).join('');
+      <a href="${mapsUrl}" target="_blank" style="
+        display:flex;align-items:center;gap:7px;width:100%;
+        background:#1A73E8;color:#fff;border-radius:9px;
+        padding:10px 14px;text-decoration:none;font-weight:700;font-size:13.5px;
+        box-sizing:border-box;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <circle cx="12" cy="9" r="2.5"/>
+        </svg>
+        فتح موقع ${escH(m.name)} على Google Maps
+      </a>
+    </div>`;
+  }).join('');
 }
 
 function renderMapLink(m){
-  // الموقع يُحفظ ويُعرض كإحداثيات فقط؛ لا نعرض أزرار Google Maps.
+  if(!m || !m.lat || !m.lng) return;
+  const mapsUrl = `https://www.google.com/maps?q=${m.lat},${m.lng}`;
+  const btnHtml = `
+    <a href="${mapsUrl}" target="_blank" style="
+      display:flex;align-items:center;gap:8px;
+      background:#1A73E8;color:#fff;border-radius:8px;
+      padding:9px 14px;text-decoration:none;font-weight:700;font-size:13px;width:fit-content;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+        <circle cx="12" cy="9" r="2.5"/>
+      </svg>
+      فتح على خريطة Google
+    </a>`;
   const mapWrap = document.getElementById('mapLinkWrap');
-  if(mapWrap) mapWrap.innerHTML = '';
+  if(mapWrap) mapWrap.innerHTML = btnHtml;
   const locHeader = document.getElementById('locBtnHeader');
-  if(locHeader) locHeader.innerHTML = '';
+  if(locHeader) locHeader.innerHTML = btnHtml;
+  const oldLocBtn = document.getElementById('locBtn');
+  if(oldLocBtn) oldLocBtn.remove();
 }
 
 function renderLocationBtn(m){
@@ -1856,7 +1809,7 @@ async function saveExportToCliente(blob, filename){
         // User should select the folder named cliente ADE itself.
         await idbSetRaw('clienteADEHandle', cliente);
       }
-      const roundDirName = filename.replace(/\.(txt|zip|html)$/i,'').replace(/_تقرير$/,'');
+      const roundDirName = filename.replace(/\.(txt|zip)$/i,'');
       const roundDir = await cliente.getDirectoryHandle(roundDirName,{create:true});
       const fh = await roundDir.getFileHandle(filename,{create:true});
       const writable = await fh.createWritable();
@@ -1872,38 +1825,6 @@ async function saveExportToCliente(blob, filename){
   const url=URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000); toast(`✅ تم تنزيل ${filename}`); return true;
-}
-
-/* ====== تقرير الجولة (HTML) ====== */
-function buildRouteReportHTML(){
-  const s = computeRouteSummary();
-  const routeName = getRouteExportName();
-  const consDisp = s.totalCons.toFixed(2);
-  const rows = meters.map(m=>{
-    const reading = m.newIndex!=null ? escH(String(m.newIndex)) : '—';
-    const cons = m.newIndex!=null ? escH(String(m.consumption||0)) : '0';
-    const annotDisp = m.annot ? escH(String(m.annot).split('+').join(' + ')) : '—';
-    const statusDisp = m.status==='done' ? 'مرفوعة' : (m.status==='anom' ? 'إشارة' : 'متبقي');
-    return `<tr><td>${escH(m.meter)}</td><td>${escH(m.name)}</td><td>${reading}</td><td>${cons}</td><td>${annotDisp}</td><td>${statusDisp}</td></tr>`;
-  }).join('');
-
-  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير ${escH(routeName)}</title><style>body{font-family:Arial,sans-serif;margin:20px;color:#222}h1{font-size:22px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.card{padding:12px;border:1px solid #ddd;border-radius:10px;text-align:center}.v{font-size:22px;font-weight:800;display:block}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #ddd;padding:7px;font-size:12px}th{background:#eee}@media print{button{display:none}}@media(max-width:700px){.cards{grid-template-columns:repeat(2,1fr)}}</style></head><body><h1>📄 تقرير الجولة ${escH(routeName)}</h1><p>تقرير مرحلي — يمكن إنشاؤه حتى قبل إنهاء الجولة.</p><div class="cards"><div class="card"><span class="v">${s.total}</span>الإجمالي</div><div class="card"><span class="v">${s.done.length}</span>مرفوعة</div><div class="card"><span class="v">${s.pending.length}</span>معلّقة</div><div class="card"><span class="v">${s.anom.length}</span>إشارات</div><div class="card"><span class="v">${s.gps.length}</span>GPS</div><div class="card"><span class="v">${s.photos.length}</span>صور</div><div class="card"><span class="v">${consDisp}</span>م³</div><div class="card"><span class="v">${s.pct}%</span>نسبة الإنجاز</div></div><button onclick="window.print()">🖨️ طباعة / PDF</button><table><thead><tr><th>رمز الزبون</th><th>الاسم</th><th>القراءة</th><th>الاستهلاك</th><th>الإشارات</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
-}
-
-async function viewRouteReport(){
-  if(!meters.length){ toast('لا توجد بيانات لعرض التقرير'); return; }
-  const html = buildRouteReportHTML();
-  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  window.open(url, '_blank');
-  setTimeout(()=>URL.revokeObjectURL(url), 60000);
-}
-
-async function saveRouteReport(){
-  if(!meters.length){ toast('لا توجد بيانات لحفظ التقرير'); return; }
-  const html = buildRouteReportHTML();
-  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
-  await saveExportToCliente(blob, `${getRouteExportName()}_تقرير.html`);
 }
 
 async function exportTXT(){
@@ -1926,168 +1847,119 @@ async function exportTXT(){
 /* ====== EXPORT RESULTS (Excel + Photos ZIP) ====== */
 async function exportResultsZip(){
   if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
+  toast('جارِ تجهيز الملف...');
 
-  const routeName = getRouteExportName();
-  toast('جارِ تجهيز ZIP...');
+  const rows = meters.map(m=>({
+    'رمز الزبون': m.meter,
+    'الرقم التسلسلي للعداد': m.meterSerial||'',
+    'الاسم': m.name,
+    'العنوان': m.address||'',
+    'نوع المشترك': m.subType||'',
+    'الهاتف': m.phone||'',
+    'رقم التعريف الوطني': m.nationalId||'',
+    'القراءة السابقة': m.prevIndex,
+    'القراءة الجديدة': m.newIndex!=null ? m.newIndex : '',
+    'الاستهلاك (م³)': m.consumption||'',
+    'المبلغ': m.amount||'',
+    'الحالة': m.status==='done'?'مرفوعة':(m.status==='anom'?'إشارة':'معلّقة'),
+    'كود الإشارات': m.annot||'',
+    'سبب القراءة الأقل/المساوية': m.lowReadingReason||'',
+    'الملاحظة': m.obs||'',
+    'لديه صورة': m.hasPhoto ? 'نعم' : 'لا',
+    'خط العرض': m.lat||'',
+    'خط الطول': m.lng||'',
+    'رابط الخريطة': (m.lat&&m.lng) ? `https://www.google.com/maps?q=${m.lat},${m.lng}` : '',
+    'تاريخ الرفع': m.savedAt ? new Date(m.savedAt).toLocaleString('ar') : ''
+  }));
 
-  try{
-    /* ===== Excel ===== */
-    const rows = meters.map(m=>({
-      'رمز الزبون': m.meter,
-      'الرقم التسلسلي للعداد': m.meterSerial||'',
-      'الاسم': m.name,
-      'العنوان': m.address||'',
-      'نوع المشترك': m.subType||'',
-      'الهاتف': m.phone||'',
-      'رقم التعريف الوطني': m.nationalId||'',
-      'القراءة السابقة': m.prevIndex,
-      'القراءة الجديدة': m.newIndex!=null ? m.newIndex : '',
-      'الاستهلاك (م³)': m.consumption||'',
-      'المبلغ': m.amount||'',
-      'الحالة': m.status==='done'?'مرفوعة':(m.status==='anom'?'إشارة':'معلّقة'),
-      'كود الإشارات': m.annot||'',
-      'سبب القراءة الأقل/المساوية': m.lowReadingReason||'',
-      'الملاحظة': m.obs||'',
-      'لديه صورة': m.hasPhoto ? 'نعم' : 'لا',
-      'خط العرض': m.lat||'',
-      'خط الطول': m.lng||'',
-      'رابط الخريطة': (m.lat&&m.lng) ? `https://www.google.com/maps?q=${m.lat},${m.lng}` : '',
-      'تاريخ الرفع': m.savedAt ? new Date(m.savedAt).toLocaleString('ar') : ''
-    }));
+  const ws = XLSX.utils.json_to_sheet(rows);
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const headers = Object.keys(rows[0] || {});
-    ws['!cols'] = headers.map(header => {
-      let maxLen = String(header).length;
-      for(const row of rows){
-        const value = row[header] == null ? '' : String(row[header]);
-        maxLen = Math.max(maxLen, value.length);
-      }
-      return { wch: Math.min(55, Math.max(10, maxLen + 2)) };
-    });
+  // ضبط عرض أعمدة Excel تلقائياً حسب محتوى كل عمود:
+  // الأعمدة القصيرة تبقى قصيرة، والأعمدة الطويلة (مثل العنوان
+  // ورقم التعريف الوطني) تأخذ عرضاً أكبر بدون تعديل يدوي.
+  const headers = Object.keys(rows[0] || {});
+  ws['!cols'] = headers.map((header, c) => {
+    let maxLen = String(header).length;
+    for (const row of rows) {
+      const value = row[header] == null ? '' : String(row[header]);
+      // نحسب طولاً تقريبياً مناسباً للعربية والنصوص الطويلة.
+      maxLen = Math.max(maxLen, value.length);
+    }
+    // حدود عملية حتى لا تصبح الأعمدة الضخمة جداً مزعجة.
+    const width = Math.min(55, Math.max(10, maxLen + 2));
+    return { wch: width };
+  });
 
-    if(ws['!ref']){
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      for(let R = range.s.r + 1; R <= range.e.r; R++){
-        const cellAddr = XLSX.utils.encode_cell({r:R, c:18});
-        const cell = ws[cellAddr];
-        if(cell && cell.v && String(cell.v).startsWith('http')){
-          cell.l = {Target:cell.v, Tooltip:'افتح على Google Maps'};
-        }
+  // جعل روابط الخريطة قابلة للنقر في Excel
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for(let R = range.s.r + 1; R <= range.e.r; R++){
+    const cellAddr = XLSX.utils.encode_cell({r: R, c: 18}); // عمود Q (رابط الخريطة)
+    const cell = ws[cellAddr];
+    if(cell && cell.v && String(cell.v).startsWith('http')){
+      cell.l = { Target: cell.v, Tooltip: 'افتح على Google Maps' };
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'القراءات');
+  const xlsxOut = XLSX.write(wb, {type:'array', bookType:'xlsx'});
+
+  const zip = new JSZip();
+  zip.file(`client.xlsx`, xlsxOut);
+
+  // ===== مجلد الصور فقط =====
+  const photosFolder = zip.folder('الصور');
+  let photoCount = 0;
+  for(const m of meters){
+    if(m.hasPhoto){
+      const dataUrl = await sg('photo:'+m.id);
+      if(dataUrl){
+        const base64Data = dataUrl.split(',')[1];
+        photosFolder.file(`${m.meter}.jpg`, base64Data, {base64:true});
+        photoCount++;
       }
     }
+  }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'القراءات');
-    const xlsxOut = XLSX.write(wb, {type:'array', bookType:'xlsx'});
-
-    const zip = new JSZip();
-    zip.file('client.xlsx', xlsxOut);
-
-    /* ===== الصور =====
-       الصور مخزنة في IndexedDB كـ Data URL. هذه الدالة تتعامل أيضاً
-       مع Blob/ArrayBuffer حتى لا يفشل ZIP إذا تغيّر نوع التخزين مستقبلاً. */
-    const photosFolder = zip.folder('الصور');
-    let photoCount = 0;
-    let skippedPhotos = 0;
-
-    for(const m of meters){
-      if(!m.hasPhoto) continue;
-
-      try{
-        const stored = await sg('photo:'+m.id);
-        if(!stored){
-          skippedPhotos++;
-          continue;
-        }
-
-        let fileData = stored;
-        let options = {};
-
-        if(typeof stored === 'string'){
-          if(stored.includes(',')){
-            const parts = stored.split(',');
-            const header = parts.shift() || '';
-            const base64Data = parts.join(',');
-            if(base64Data){
-              fileData = base64Data;
-              options = {base64:true};
-              const mime = (header.match(/data:([^;]+)/i)||[])[1] || 'image/jpeg';
-              const ext = mime.includes('png') ? 'png' : (mime.includes('webp') ? 'webp' : 'jpg');
-              photosFolder.file(`${m.meter}_${m.id}.${ext}`, fileData, options);
-            }else{
-              skippedPhotos++;
-            }
-          }else{
-            // في حالة كانت القيمة Base64 خام بدون data:...
-            photosFolder.file(`${m.meter}_${m.id}.jpg`, stored, {base64:true});
-          }
-        }else{
-          // JSZip يستطيع التعامل مباشرة مع Blob/ArrayBuffer.
-          photosFolder.file(`${m.meter}_${m.id}.jpg`, fileData);
-        }
-
-        if(stored) photoCount++;
-      }catch(photoErr){
-        console.warn('تعذر إضافة صورة إلى ZIP:', m.id, photoErr);
-        skippedPhotos++;
-      }
+  // ===== ملف المواقع HTML — روابط قابلة للنقر مباشرة =====
+  let locRows = '';
+  for(const m of meters){
+    if(m.lat && m.lng){
+      const mapsUrl = `https://www.google.com/maps?q=${m.lat},${m.lng}`;
+      locRows += `<tr>
+        <td>${m.meter}</td>
+        <td>${m.name}</td>
+        <td>${m.address||'—'}</td>
+        <td><a href="${mapsUrl}" style="color:#1A73E8;font-weight:bold;">📍 فتح الخريطة</a></td>
+      </tr>`;
     }
-
-    /* ===== المواقع.html ===== */
-    let locRows = '';
-    for(const m of meters){
-      if(m.lat && m.lng){
-        const lat = Number(m.lat);
-        const lng = Number(m.lng);
-        const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}`;
-        locRows += `<tr>
-          <td>${escH(m.meter)}</td>
-          <td>${escH(m.name)}</td>
-          <td>${escH(m.address||'—')}</td>
-          <td><a href="${mapUrl}" target="_blank" rel="noopener">📍 ${Number.isFinite(lat)?lat.toFixed(6):escH(m.lat)}, ${Number.isFinite(lng)?lng.toFixed(6):escH(m.lng)}</a></td>
-        </tr>`;
-      }
-    }
-
-    const locHtml = `<!DOCTYPE html>
+  }
+  const locHtml = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>مواقع الزبائن - ${escH(routeName)}</title>
+<title>مواقع الزبائن</title>
 <style>
-body{font-family:Arial,sans-serif;padding:12px;background:#f5f5f5}h2{color:#1565C0;margin-bottom:12px}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
-th{background:#1565C0;color:#fff;padding:10px 8px;font-size:13px}td{padding:9px 8px;border-bottom:1px solid #eee;font-size:13px}a{color:#1565C0;text-decoration:none}
-</style></head><body>
-<h2>📍 مواقع الزبائن — ${escH(routeName)}</h2>
-<table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الموقع</th></tr>${locRows}</table>
+  body{font-family:Tajawal,Arial,sans-serif;padding:12px;background:#f5f5f5;}
+  h2{color:#1565C0;margin-bottom:12px;}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+  th{background:#1565C0;color:#fff;padding:10px 8px;font-size:13px;}
+  td{padding:9px 8px;border-bottom:1px solid #eee;font-size:13px;}
+  tr:last-child td{border-bottom:none;}
+  a{text-decoration:none;}
+</style>
+</head>
+<body>
+<h2>📍 مواقع الزبائن</h2>
+<table>
+  <tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الموقع</th></tr>
+  ${locRows}
+</table>
 </body></html>`;
-    zip.file('المواقع.html', locHtml);
+  zip.file('المواقع.html', locHtml);
 
-    /* STORE مناسب هنا لأن XLSX وJPEG/WEBP مضغوطة أصلاً،
-       ويقلل استهلاك الذاكرة ووقت إنشاء ZIP على الهاتف. */
-    const blob = await zip.generateAsync({
-      type:'blob',
-      compression:'STORE',
-      streamFiles:true
-    });
-
-    if(!blob || !blob.size){
-      throw new Error('تم إنشاء ZIP فارغ');
-    }
-
-    const saved = await saveExportToCliente(blob, `${routeName}.zip`);
-    if(saved){
-      const msg = skippedPhotos
-        ? `✅ تم حفظ ${routeName}.zip — ${photoCount} صورة، وتعذر إضافة ${skippedPhotos} صورة`
-        : `✅ تم حفظ ${routeName}.zip — ${photoCount} صورة + Excel + المواقع`;
-      toast(msg);
-    }
-  }catch(err){
-    console.error('ZIP export failed:', err);
-    const detail = err && err.message ? `: ${err.message}` : '';
-    toast(`❌ تعذر إنشاء ZIP${detail}`);
-  }
+  const blob = await zip.generateAsync({type:'blob'});
+  await saveExportToCliente(blob, `${getRouteExportName()}.zip`);
+  toast(`✅ تم تجهيز ZIP للجولة ${getRouteExportName().replace(/^R/,'')} (${photoCount} صورة)`);
 }
 
 /* ====== EXPORT / IMPORT (JSON backup) ====== */
