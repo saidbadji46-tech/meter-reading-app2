@@ -1763,47 +1763,67 @@ function getRouteExportName(){
   return `R${triplet}T${clean}`;
 }
 
-async function saveExportToCliente(blob, filename){
-  // Android/Chrome does not allow a web page to silently write to the root of
-  // internal storage. The first export therefore asks the user to choose the
-  // actual "cliente ADE" folder (or create it). The handle is remembered so
-  // later exports create R3T216/R4T216 folders automatically without asking.
-  try{
-    if(window.showDirectoryPicker){
-      let cliente = await idbGetRaw('clienteADEHandle');
-      if(cliente){
-        try{
-          const perm = await cliente.queryPermission?.({mode:'readwrite'});
-          if(perm !== 'granted') await cliente.requestPermission?.({mode:'readwrite'});
-          if((await cliente.queryPermission?.({mode:'readwrite'})) !== 'granted') cliente=null;
-        }catch(e){ cliente=null; }
-      }
-      if(!cliente){
-        toast('اختر أو أنشئ مجلد cliente ADE داخل التخزين الداخلي مرة واحدة فقط');
-        cliente = await window.showDirectoryPicker({mode:'readwrite', startIn:'documents'});
-        // User should select the folder named cliente ADE itself.
-        await idbSetRaw('clienteADEHandle', cliente);
-      }
-      const roundDirName = filename.replace(/\.(txt|zip)$/i,'');
-      const roundDir = await cliente.getDirectoryHandle(roundDirName,{create:true});
-      const fh = await roundDir.getFileHandle(filename,{create:true});
-      const writable = await fh.createWritable();
-      await writable.write(blob); await writable.close();
-      toast(`✅ تم حفظ ${filename} داخل cliente ADE/${roundDirName}`);
-      return true;
-    }
-  }catch(err){
-    if(err && err.name === 'AbortError'){ toast('تم إلغاء اختيار مجلد cliente ADE'); return false; }
-    console.error(err);
-    toast('تعذر الحفظ المباشر. سيتم تنزيل الملف بالطريقة العادية.');
+async function getADEDirectory(){
+  // في المتصفح لا يمكن الكتابة بصمت إلى جذر التخزين الداخلي. لذلك نطلب
+  // اختيار التخزين الداخلي مرة واحدة فقط، ثم ننشئ مجلد ADE تلقائياً داخله.
+  if(!window.showDirectoryPicker) return null;
+
+  let storageHandle = await idbGetRaw('adeStorageHandle');
+  if(storageHandle){
+    try{
+      let perm = await storageHandle.queryPermission?.({mode:'readwrite'});
+      if(perm !== 'granted') await storageHandle.requestPermission?.({mode:'readwrite'});
+      if((await storageHandle.queryPermission?.({mode:'readwrite'})) !== 'granted') storageHandle=null;
+    }catch(e){ storageHandle=null; }
   }
-  const url=URL.createObjectURL(blob); const a=document.createElement('a');
-  a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000); toast(`✅ تم تنزيل ${filename}`); return true;
+
+  if(!storageHandle){
+    toast('اختر stockage interne مرة واحدة فقط، وسينشئ التطبيق مجلد ADE تلقائياً');
+    storageHandle = await window.showDirectoryPicker({mode:'readwrite', startIn:'downloads'});
+    await idbSetRaw('adeStorageHandle', storageHandle);
+  }
+
+  return await storageHandle.getDirectoryHandle('ADE',{create:true});
 }
 
-async function exportTXT(){
-  if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
+async function saveExportToADE(blob, filename, roundDirName){
+  try{
+    if(window.showDirectoryPicker){
+      const adeDir = await getADEDirectory();
+      if(adeDir){
+        const roundDir = await adeDir.getDirectoryHandle(roundDirName,{create:true});
+        const fh = await roundDir.getFileHandle(filename,{create:true});
+        const writable = await fh.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return true;
+      }
+    }
+  }catch(err){
+    if(err && err.name === 'AbortError'){
+      toast('تم إلغاء اختيار التخزين');
+      return false;
+    }
+    console.error(err);
+    toast('تعذر الحفظ داخل ADE، سيتم التنزيل بالطريقة العادية.');
+  }
+
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  return true;
+}
+
+async function writeBlobToDirectory(dir, filename, blob){
+  const fh = await dir.getFileHandle(filename,{create:true});
+  const writable = await fh.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+function buildRoundTXT(){
   const headers = ['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];
   const lines = [headers.join('\t')];
   meters.forEach(m=>{
@@ -1815,15 +1835,49 @@ async function exportTXT(){
     ];
     lines.push(row.join('\t'));
   });
-  const blob = new Blob(['\uFEFF'+lines.join('\n')], {type:'text/plain;charset=utf-8'});
-  await saveExportToCliente(blob, `${getRouteExportName()}.txt`);
+  return new Blob(['\uFEFF'+lines.join('\n')], {type:'text/plain;charset=utf-8'});
 }
 
-/* ====== EXPORT RESULTS (Excel + Photos ZIP) ====== */
-async function exportResultsZip(){
-  if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
-  toast('جارِ تجهيز الملف...');
+function buildLocationsHTML(){
+  let locRows = '';
+  for(const m of meters){
+    if(m.lat && m.lng){
+      const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}`;
+      locRows += `<tr onclick="window.open('${mapUrl}','_blank')" style="cursor:pointer;">
+        <td>${escH(m.meter)}</td>
+        <td>${escH(m.name)}</td>
+        <td>${escH(m.address||'—')}</td>
+        <td><a href="${mapUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">📍 ${Number(m.lat).toFixed(6)}, ${Number(m.lng).toFixed(6)}<br><b>فتح على الخريطة</b></a></td>
+      </tr>`;
+    }
+  }
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مواقع الزبائن</title>
+<style>
+body{font-family:Tajawal,Arial,sans-serif;padding:12px;background:#f5f5f5;}
+h2{color:#1565C0;margin-bottom:12px;}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+th{background:#1565C0;color:#fff;padding:10px 8px;font-size:13px;}
+td{padding:9px 8px;border-bottom:1px solid #eee;font-size:13px;}
+tr:last-child td{border-bottom:none;}
+tr[onclick]:active{background:#e3f2fd;}
+a{display:block;color:#1565C0;text-decoration:none;font-weight:700;line-height:1.7;}
+a b{font-size:12px;}
+</style>
+</head>
+<body>
+<h2>📍 مواقع الزبائن</h2>
+<p style="color:#666;font-size:12px;">اضغط على أي زبون أو على الإحداثيات للانتقال مباشرة إلى موقعه في Google Maps.</p>
+<table>
+<tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الموقع</th></tr>
+${locRows}
+</table>
+</body></html>`;
+}
 
+async function buildRoundZip(){
   const rows = meters.map(m=>({
     'رمز الزبون': m.meter,
     'الرقم التسلسلي للعداد': m.meterSerial||'',
@@ -1848,92 +1902,85 @@ async function exportResultsZip(){
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
-
-  // ضبط عرض أعمدة Excel تلقائياً حسب محتوى كل عمود:
-  // الأعمدة القصيرة تبقى قصيرة، والأعمدة الطويلة (مثل العنوان
-  // ورقم التعريف الوطني) تأخذ عرضاً أكبر بدون تعديل يدوي.
   const headers = Object.keys(rows[0] || {});
-  ws['!cols'] = headers.map((header, c) => {
+  ws['!cols'] = headers.map((header) => {
     let maxLen = String(header).length;
-    for (const row of rows) {
-      const value = row[header] == null ? '' : String(row[header]);
-      // نحسب طولاً تقريبياً مناسباً للعربية والنصوص الطويلة.
-      maxLen = Math.max(maxLen, value.length);
-    }
-    // حدود عملية حتى لا تصبح الأعمدة الضخمة جداً مزعجة.
-    const width = Math.min(55, Math.max(10, maxLen + 2));
-    return { wch: width };
+    for (const row of rows) maxLen = Math.max(maxLen, String(row[header] == null ? '' : row[header]).length);
+    return { wch: Math.min(55, Math.max(10, maxLen + 2)) };
   });
-
-  // جعل روابط الخريطة قابلة للنقر في Excel
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  for(let R = range.s.r + 1; R <= range.e.r; R++){
-    const cellAddr = XLSX.utils.encode_cell({r: R, c: 18}); // عمود Q (رابط الخريطة)
-    const cell = ws[cellAddr];
-    if(cell && cell.v && String(cell.v).startsWith('http')){
-      cell.l = { Target: cell.v, Tooltip: 'افتح على Google Maps' };
+  if(ws['!ref']){
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for(let R = range.s.r + 1; R <= range.e.r; R++){
+      const cellAddr = XLSX.utils.encode_cell({r:R,c:18});
+      const cell = ws[cellAddr];
+      if(cell && cell.v && String(cell.v).startsWith('http')) cell.l={Target:cell.v,Tooltip:'افتح على Google Maps'};
     }
   }
-
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'القراءات');
-  const xlsxOut = XLSX.write(wb, {type:'array', bookType:'xlsx'});
 
   const zip = new JSZip();
-  zip.file(`client.xlsx`, xlsxOut);
+  zip.file('client.xlsx', XLSX.write(wb,{type:'array',bookType:'xlsx'}));
+  zip.file('المواقع.html', buildLocationsHTML());
+  return await zip.generateAsync({type:'blob'});
+}
 
-  // ===== مجلد الصور فقط =====
-  const photosFolder = zip.folder('الصور');
-  let photoCount = 0;
-  for(const m of meters){
-    if(m.hasPhoto){
-      const dataUrl = await sg('photo:'+m.id);
-      if(dataUrl){
+async function exportRound(){
+  if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
+  const roundName = getRouteExportName();
+  toast('جارِ تجهيز الجولة كاملة...');
+
+  try{
+    // TXT + ZIP داخل مجلد ADE/اسم الجولة، والصور في مجلد الصور منفصل.
+    const txtBlob = buildRoundTXT();
+    const zipBlob = await buildRoundZip();
+
+    if(window.showDirectoryPicker){
+      const adeDir = await getADEDirectory();
+      if(!adeDir) return;
+      const roundDir = await adeDir.getDirectoryHandle(roundName,{create:true});
+      await writeBlobToDirectory(roundDir, `${roundName}.txt`, txtBlob);
+      await writeBlobToDirectory(roundDir, `${roundName}.zip`, zipBlob);
+
+      const photosDir = await roundDir.getDirectoryHandle('الصور',{create:true});
+      let photoCount = 0;
+      for(const m of meters){
+        if(!m.hasPhoto) continue;
+        const dataUrl = await sg('photo:'+m.id);
+        if(!dataUrl) continue;
         const base64Data = dataUrl.split(',')[1];
-        photosFolder.file(`${m.meter}.jpg`, base64Data, {base64:true});
+        const byteChars = atob(base64Data);
+        const bytes = new Uint8Array(byteChars.length);
+        for(let i=0;i<byteChars.length;i++) bytes[i]=byteChars.charCodeAt(i);
+        await writeBlobToDirectory(photosDir, `${m.meter}.jpg`, new Blob([bytes],{type:'image/jpeg'}));
         photoCount++;
       }
+      toast(`✅ تم حفظ ${roundName} داخل ADE/${roundName} — TXT + ZIP + الصور (${photoCount})`);
+      return;
     }
-  }
 
-  // ===== ملف المواقع HTML — روابط قابلة للنقر مباشرة =====
-  let locRows = '';
-  for(const m of meters){
-    if(m.lat && m.lng){
-      locRows += `<tr>
-        <td>${m.meter}</td>
-        <td>${m.name}</td>
-        <td>${m.address||'—'}</td>
-        <td>📍 ${Number(m.lat).toFixed(6)}, ${Number(m.lng).toFixed(6)}</td>
-      </tr>`;
-    }
+    // المتصفحات التي لا تدعم File System Access: ننزّل ملف ZIP وTXT كحل احتياطي.
+    await saveExportToADE(txtBlob, `${roundName}.txt`, roundName);
+    await saveExportToADE(zipBlob, `${roundName}.zip`, roundName);
+    toast(`✅ تم تجهيز ${roundName} (المتصفح لا يدعم إنشاء مجلد ADE تلقائياً)`);
+  }catch(err){
+    console.error(err);
+    if(err && err.name==='AbortError') toast('تم إلغاء التصدير');
+    else toast('حدث خطأ أثناء تصدير الجولة');
   }
-  const locHtml = `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>مواقع الزبائن</title>
-<style>
-  body{font-family:Tajawal,Arial,sans-serif;padding:12px;background:#f5f5f5;}
-  h2{color:#1565C0;margin-bottom:12px;}
-  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-  th{background:#1565C0;color:#fff;padding:10px 8px;font-size:13px;}
-  td{padding:9px 8px;border-bottom:1px solid #eee;font-size:13px;}
-  tr:last-child td{border-bottom:none;}
-  a{text-decoration:none;}
-</style>
-</head>
-<body>
-<h2>📍 مواقع الزبائن</h2>
-<table>
-  <tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>إحداثيات الموقع</th></tr>
-  ${locRows}
-</table>
-</body></html>`;
-  zip.file('المواقع.html', locHtml);
+}
 
-  const blob = await zip.generateAsync({type:'blob'});
-  await saveExportToCliente(blob, `${getRouteExportName()}.zip`);
-  toast(`✅ تم تجهيز ZIP للجولة ${getRouteExportName().replace(/^R/,'')} (${photoCount} صورة)`);
+// التصديرين القديمين يبقيان للتوافق مع أي استدعاء قديم.
+async function exportTXT(){
+  if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
+  const blob=buildRoundTXT();
+  await saveExportToADE(blob,`${getRouteExportName()}.txt`,getRouteExportName());
+}
+
+async function exportResultsZip(){
+  if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
+  const blob=await buildRoundZip();
+  await saveExportToADE(blob,`${getRouteExportName()}.zip`,getRouteExportName());
 }
 
 /* ====== EXPORT / IMPORT (JSON backup) ====== */
