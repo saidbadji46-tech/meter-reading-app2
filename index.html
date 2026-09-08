@@ -383,6 +383,20 @@ main{flex:1;overflow-y:auto;}
 
     <!-- LIST VIEWS -->
     <div id="tab-all" class="view active">
+      <div id="proDashboard" style="margin:10px 14px 4px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.04);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <b style="font-size:14px;">📊 ملخص الجولة</b><span id="dashPct" style="font-weight:800;color:var(--blue);">0%</span>
+        </div>
+        <div style="height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:10px;"><div id="dashFill" style="height:100%;width:0%;background:var(--blue);transition:width .3s;"></div></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;text-align:center;font-size:11px;">
+          <div><b id="dashDone">0</b><br><span style="color:var(--muted);">مقروء</span></div>
+          <div><b id="dashPending">0</b><br><span style="color:var(--muted);">متبقي</span></div>
+          <div><b id="dashLoc">0</b><br><span style="color:var(--muted);">GPS</span></div>
+          <div><b id="dashCons">0</b><br><span style="color:var(--muted);">م³</span></div>
+          <div><b id="dashPhotos">0</b><br><span style="color:var(--muted);">صور</span></div>
+          <div><b id="dashAlerts">0</b><br><span style="color:var(--muted);">تنبيهات</span></div>
+        </div>
+      </div>
       <div class="progress-bar-wrap">
         <div class="progress-info">
           <span>التقدم في الجولة</span>
@@ -423,7 +437,7 @@ main{flex:1;overflow-y:auto;}
         </div>
       </div>
       <div style="padding:0 14px 14px;">
-        <button class="btn-prim" onclick="exportJSON()" style="width:100%;padding:13px;">تصدير نسخة احتياطية</button>
+        <button class="btn-prim" onclick="exportJSON()" style="width:100%;padding:13px;margin-bottom:8px;">تصدير نسخة احتياطية</button><button class="btn-ghost" onclick="generateRoundReport()" style="width:100%;padding:13px;">📄 تقرير نهاية الجولة</button>
       </div>
     </div>
 
@@ -519,6 +533,11 @@ main{flex:1;overflow-y:auto;}
         </div>
       </div>
 
+      <div id="smartMeterInfo" style="margin:0 14px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:12px;line-height:1.8;">
+        <div style="font-weight:800;margin-bottom:4px;">📈 تحليل سريع</div>
+        <div id="consAlert">أدخل القراءة لرؤية التحليل.</div>
+        <button type="button" onclick="showMeterHistory()" style="margin-top:7px;border:1px solid var(--line);background:transparent;border-radius:7px;padding:6px 10px;color:var(--blue);font-weight:700;cursor:pointer;">🕐 تاريخ القراءات</button>
+      </div>
       <div style="height:72px;"></div>
       <div class="save-bar">
         <button class="btn-skip" onclick="skipMeter()">تخطّي</button>
@@ -816,6 +835,8 @@ function renderAll(){
     return (m.name||'').toLowerCase().includes(q)
         || (m.meter||'').toLowerCase().includes(q)
         || (m.address||'').toLowerCase().includes(q)
+        || (m.phone||'').toLowerCase().replace(/\s+/g,'').includes(qFlat)
+        || (m.nationalId||'').toLowerCase().replace(/\s+/g,'').includes(qFlat)
         || (m.meterSerial||'').toLowerCase().replace(/\s+/g,'').includes(qFlat);
   };
   const done=meters.filter(m=>m.status==='done'&&matchQ(m));
@@ -1124,6 +1145,7 @@ async function chooseLowReadingReason(reason){
   const val=pendingLowReading.val;
   if(!m){ closeLowReadingModal(); return; }
   closeLowReadingModal();
+  const oldState = { newIndex:m.newIndex, consumption:m.consumption||0, amount:m.amount||0, annot:m.annot||'', lowReadingReason:m.lowReadingReason||'', obs:m.obs||'', savedAt:m.savedAt||null };
   m.newIndex=val;
   m.consumption=Math.max(0, val-m.prevIndex);
   m.amount=calcADEBill(m.consumption, m.subType);
@@ -1132,6 +1154,8 @@ async function chooseLowReadingReason(reason){
   m.annot=selectedAnnots.length ? selectedAnnots.join('+') : 'INH';
   m.status=selectedAnnots.some(c=>c!=='00') ? 'anom' : 'done';
   m.savedAt=new Date().toISOString();
+  m.history = Array.isArray(m.history) ? m.history : [];
+  if(oldState.savedAt || oldState.newIndex!==null && oldState.newIndex!==undefined){ m.history.push(oldState); if(m.history.length>30) m.history=m.history.slice(-30); }
   await saveMeters();
   renderAll();
   toast(`✅ تم الحفظ بسبب: ${reason}`);
@@ -1143,6 +1167,7 @@ async function saveReleve(){
   const m = meters.find(x=>x.id===currentMeterId);
   if(!m) return;
   const val = parseFloat(document.getElementById('newIndexInput').value);
+  const oldState = { newIndex:m.newIndex, consumption:m.consumption||0, amount:m.amount||0, annot:m.annot||'', lowReadingReason:m.lowReadingReason||'', obs:m.obs||'', savedAt:m.savedAt||null };
   const hasSignal = selectedAnnots.some(c=>c!=='00');
 
   if(!hasSignal){
@@ -1174,6 +1199,8 @@ async function saveReleve(){
   m.annot = selectedAnnots.length ? selectedAnnots.join('+') : 'INH';
   m.status = hasSignal ? 'anom' : 'done';
   m.savedAt = new Date().toISOString();
+  m.history = Array.isArray(m.history) ? m.history : [];
+  if(oldState.savedAt || oldState.newIndex!==null && oldState.newIndex!==undefined){ m.history.push(oldState); if(m.history.length>30) m.history=m.history.slice(-30); }
   await saveMeters();
   renderAll();
   toast('✅ تم الحفظ');
