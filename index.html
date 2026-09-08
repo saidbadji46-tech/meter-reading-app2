@@ -920,10 +920,9 @@ function renderAll(){
         || (m.address||'').toLowerCase().includes(q)
         || (m.meterSerial||'').toLowerCase().replace(/\s+/g,'').includes(qFlat);
   };
-  // الإشارة مستقلة عن حالة القراءة: يمكن للعداد أن يكون مرفوعاً ومعه إشارة في نفس الوقت.
   const done=meters.filter(m=>m.status==='done'&&matchQ(m));
-  const pending=meters.filter(m=>m.status==='pending'&&matchQ(m));
-  const anom=meters.filter(m=>!!String(m.annot||'').trim()&&matchQ(m));
+  const pending=meters.filter(m=>m.status!=='done'&&m.status!=='anom'&&matchQ(m));
+  const anom=meters.filter(m=>m.status==='anom'&&matchQ(m));
   const filtered=meters.filter(matchQ);
 
   const pct = meters.length ? Math.round(done.length/meters.length*100) : 0;
@@ -1009,10 +1008,8 @@ function renderStats2(done, pending, anom){
 
 /* ===== PRO DASHBOARD / ARCHIVE / VALIDATION ===== */
 function archiveStats(ms){
-  const done=ms.filter(m=>m.status==='done');
-  const pending=ms.filter(m=>m.status==='pending');
-  const signalCount=ms.filter(m=>!!String(m.annot||'').trim()).length;
-  return {total:ms.length,done:done.length,pending:pending.length,anom:signalCount,signalCount,consumption:done.reduce((s,m)=>s+(Number(m.consumption)||0),0)};
+  const done=ms.filter(m=>m.status==='done'), anom=ms.filter(m=>m.status==='anom');
+  return {total:ms.length,done:done.length,anom:anom.length,pending:ms.length-done.length-anom.length,consumption:done.reduce((s,m)=>s+(Number(m.consumption)||0),0)};
 }
 function getPreviousRound(){
   const route=getRouteExportName();
@@ -1058,34 +1055,27 @@ function renderArchive(){
   const el=document.getElementById('archiveList'); if(!el)return;
   if(!roundArchives.length){el.innerHTML='<div class="empty-state"><div class="ico">🗂️</div><p>لا توجد جولات سابقة بعد.</p></div>';return;}
   el.innerHTML=roundArchives.map(a=>{
-    const st=archiveStats(a.meters||[]);
-    return `<div class="archive-card"><div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:15px;font-weight:900;color:var(--blue)">${escH(a.route)}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">${new Date(a.completedAt||a.createdAt||Date.now()).toLocaleString('ar-DZ')}</div></div><span class="chip chip-done">${st.done}/${st.total} مرفوعة</span></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px"><div class="stat-box" style="padding:8px"><b>${st.total}</b><div class="lbl">إجمالي</div></div><div class="stat-box" style="padding:8px"><b>${st.done}</b><div class="lbl">مرفوعة</div></div><div class="stat-box" style="padding:8px"><b>${st.pending}</b><div class="lbl">معلّقة</div></div><div class="stat-box" style="padding:8px"><b>${st.signalCount}</b><div class="lbl">إشارات</div></div></div><div class="archive-actions"><button class="btn-prim" onclick="openArchivedReport('${a.id}')">📋 التقرير</button><button class="btn-ghost" onclick="restoreArchive('${a.id}')">♻️ استرجاع</button><button class="btn-ghost" onclick="deleteArchivedRound('${a.id}')" style="color:#b91c1c">🗑️ حذف</button></div></div>`;
+    const st=a.stats||archiveStats(a.meters||[]);
+    return `<div class="archive-card"><div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:15px;font-weight:900;color:var(--blue)">${escH(a.route)}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">${new Date(a.completedAt||a.createdAt||Date.now()).toLocaleString('ar-DZ')}</div></div><span class="chip chip-done">${st.done}/${st.total} مرفوعة</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px"><div class="stat-box" style="padding:8px"><b>${st.total}</b><div class="lbl">زبون</div></div><div class="stat-box" style="padding:8px"><b>${st.consumption||0}</b><div class="lbl">م³</div></div><div class="stat-box" style="padding:8px"><b>${st.anom}</b><div class="lbl">إشارات</div></div></div><div class="archive-actions"><button class="btn-prim" onclick="openArchivedReport('${a.id}')">📋 التقرير</button><button class="btn-ghost" onclick="restoreArchive('${a.id}')">♻️ استرجاع</button><button class="btn-ghost" onclick="deleteArchive('${a.id}')" style="color:#C62828">🗑️ حذف</button></div></div>`;
   }).join('');
-}
-function showReportHtml(html){
-  let modal=document.getElementById('reportViewerModal');
-  if(!modal){
-    modal=document.createElement('div'); modal.id='reportViewerModal';
-    modal.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;flex-direction:column;padding:10px;box-sizing:border-box;';
-    modal.innerHTML='<div style="display:flex;justify-content:flex-start;gap:8px;padding:6px 0"><button id="reportViewerClose" style="border:0;border-radius:10px;padding:9px 14px;background:#fff;color:#222;font-weight:800">✕ إغلاق التقرير</button></div><iframe id="reportViewerFrame" style="flex:1;width:100%;border:0;border-radius:12px;background:#fff"></iframe>';
-    document.body.appendChild(modal); document.getElementById('reportViewerClose').onclick=()=>modal.remove();
-  }
-  modal.style.display='flex'; document.getElementById('reportViewerFrame').srcdoc=html;
 }
 function openArchivedReport(id){
   const a=roundArchives.find(x=>x.id===id); if(!a)return;
   const oldM=meters,oldS=settings;
-  meters=JSON.parse(JSON.stringify(a.meters||[])); settings=Object.assign({},settings,JSON.parse(JSON.stringify(a.settings||{})));
-  const html=buildRouteReportHtml(a.completedAt||a.createdAt); meters=oldM; settings=oldS;
-  showReportHtml(html);
+  try{ meters=JSON.parse(JSON.stringify(a.meters||[])); settings=Object.assign({},settings,JSON.parse(JSON.stringify(a.settings||{}))); showReportHtml(buildRouteReportHtml()); }
+  catch(err){ console.error(err); toast('تعذر إنشاء تقرير الجولة المؤرشفة'); }
+  finally{ meters=oldM; settings=oldS; }
 }
-async function deleteArchivedRound(id){
-  const a=roundArchives.find(x=>x.id===id); if(!a)return;
-  if(!confirm(`هل تريد حذف الجولة ${a.route} نهائياً من الأرشيف؟\nلن تتأثر الجولة الحالية.`)) return;
-  roundArchives=roundArchives.filter(x=>x.id!==id);
-  await ss('roundArchives',JSON.stringify(roundArchives)); renderArchive(); toast('🗑️ تم حذف الجولة من الأرشيف');
+async function deleteArchive(id){
+  const idx=roundArchives.findIndex(x=>x.id===id); if(idx<0)return;
+  const a=roundArchives[idx];
+  if(!confirm(`حذف الجولة المؤرشفة ${a.route||''} نهائياً؟`)) return;
+  roundArchives.splice(idx,1);
+  await ss('roundArchives',JSON.stringify(roundArchives));
+  renderArchive();
+  toast('🗑️ تم حذف الجولة المؤرشفة');
 }
-async function restoreArchive(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;if(!confirm('استرجاع هذه الجولة سيستبدل الجولة الحالية. هل تريد المتابعة؟'))return;meters=JSON.parse(JSON.stringify(a.meters));settings=Object.assign(settings,JSON.parse(JSON.stringify(a.settings)));await saveMeters();await saveSettings3();renderAll();toast('♻️ تم استرجاع الجولة');}
+async function restoreArchive(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;if(!confirm('استرجاع هذه الجولة سيستبدل الجولة الحالية. هل تريد المتابعة؟'))return;meters=JSON.parse(JSON.stringify(a.meters||[]));settings=Object.assign(settings,JSON.parse(JSON.stringify(a.settings||{})));await saveMeters();await saveSettings3();currentRoundCreatedAt=settings.currentRoundCreatedAt||a.createdAt||Date.now();renderAll();toast('♻️ تم استرجاع الجولة');}
 async function archiveAndStartNewRound(){const a=await archiveCurrentRound(false);if(!a)return;meters=[];settings.routeNum='T00001';settings.currentRoundCreatedAt=Date.now();currentRoundCreatedAt=settings.currentRoundCreatedAt;await saveMeters();await saveSettings3();document.getElementById('mRouteNum').value=settings.routeNum;document.getElementById('topBadge').textContent=settings.routeNum;renderAll();toast('➕ تم فتح جولة جديدة');}
 function toggleDarkMode(){settings.darkMode=!settings.darkMode;document.body.classList.toggle('dark',!!settings.darkMode);saveSettings3();toast(settings.darkMode?'🌙 تم تفعيل الوضع الليلي':'☀️ تم إيقاف الوضع الليلي');}
 
@@ -1320,7 +1310,7 @@ async function chooseLowReadingReason(reason){
   m.lowReadingReason=reason;
   m.obs=document.getElementById('obsInput').value;
   m.annot=selectedAnnots.length ? selectedAnnots.join('+') : 'INH';
-  m.status = (m.newIndex!==null && m.newIndex!=='') ? 'done' : 'anom';
+  m.status=selectedAnnots.some(c=>c!=='00') ? 'anom' : 'done';
   m.savedAt=new Date().toISOString();
   m.history = Array.isArray(m.history)?m.history:[]; m.history.push(val); m.consumptionHistory = Array.isArray(m.consumptionHistory)?m.consumptionHistory:[]; m.consumptionHistory.push(Number(m.consumption)||0);
   if(signatureDirty){ const sig=document.getElementById('signatureCanvas'); if(sig){ m.signatureData=sig.toDataURL('image/png'); signatureDirty=false; } }
@@ -1382,7 +1372,7 @@ async function saveReleve(){
   m.lowReadingReason = '';
   m.obs = document.getElementById('obsInput').value;
   m.annot = selectedAnnots.length ? selectedAnnots.join('+') : 'INH';
-  m.status = !isNaN(val) ? 'done' : (hasSignal ? 'anom' : 'pending');
+  m.status = hasSignal ? 'anom' : 'done';
   m.savedAt = new Date().toISOString();
   m.history = Array.isArray(m.history)?m.history:[];
   m.consumptionHistory = Array.isArray(m.consumptionHistory)?m.consumptionHistory:[];
@@ -2038,19 +2028,23 @@ async function exportTXT(){
 
 /* ====== ROUTE REPORT ====== */
 function getRouteStats(){
-  const base=archiveStats(meters);
+  const total = meters.length;
+  const done = meters.filter(m=>m.status==='done').length;
+  const anom = meters.filter(m=>m.status==='anom').length;
+  const pending = total - done - anom;
   const gps = meters.filter(m=>m.lat && m.lng).length;
   const photos = meters.filter(m=>m.hasPhoto).length;
+  const consumption = meters.reduce((sum,m)=>sum + (m.status==='done' ? (Number(m.consumption)||0) : 0), 0);
   const amount = meters.reduce((sum,m)=>sum + (m.status==='done' ? (Number(m.amount)||0) : 0), 0);
-  const progress = base.total ? Math.round(base.done/base.total*100) : 0;
-  return {...base,gps,photos,amount,progress};
+  const progress = total ? Math.round(done/total*100) : 0;
+  return {total,done,pending,anom,gps,photos,consumption,amount,progress};
 }
-function buildRouteReportHtml(dateOverride){
+function buildRouteReportHtml(){
   const st = getRouteStats();
   const route = escH(getRouteExportName());
   const worker = escH(settings.worker||'');
   const currency = escH(settings.currency||'دج');
-  const date = new Date(dateOverride || Date.now()).toLocaleString('ar-DZ');
+  const date = new Date().toLocaleString('ar-DZ');
   const rows = meters.map((m,i)=>{
     const status = m.status==='done'?'مرفوعة':(m.status==='anom'?'إشارة':'معلّقة');
     const map = (m.lat&&m.lng) ? `<a href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank">📍 فتح</a>` : '—';
@@ -2058,86 +2052,212 @@ function buildRouteReportHtml(dateOverride){
   }).join('');
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير الجولة ${route}</title><style>
 @page{size:A4;margin:12mm}body{font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#222;margin:0;padding:16px}.report{max-width:1100px;margin:auto;background:#fff;padding:22px;border-radius:12px;box-shadow:0 2px 12px #0001}h1{margin:0 0 5px;color:#1565c0;font-size:25px}h2{font-size:17px;margin:22px 0 10px;color:#1565c0}.meta{color:#666;font-size:12px;line-height:1.8}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:16px}.card{border:1px solid #ddd;border-radius:9px;padding:12px;text-align:center}.num{font-size:22px;font-weight:800;color:#1565c0}.lbl{font-size:11px;color:#666;margin-top:4px}.bar{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin-top:12px}.bar>span{display:block;height:100%;background:#1565c0;width:${st.progress}%}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#1565c0;color:white;padding:8px}td{padding:7px;border-bottom:1px solid #eee;text-align:right}a{color:#1565c0;font-weight:bold;text-decoration:none}.actions{position:sticky;top:0;background:#fff;padding-bottom:10px;display:flex;gap:8px}.actions button{border:0;border-radius:8px;padding:10px 14px;background:#1565c0;color:#fff;font-weight:bold}@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}table{font-size:9px}.report{padding:12px}}@media print{body{background:#fff;padding:0}.report{box-shadow:none;padding:0}.actions{display:none}.card{break-inside:avoid}}
-</style></head><body><div class="report"><div class="actions"><button onclick="window.print()">🖨️ طباعة</button><button onclick="window.close()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(m.status==='done'?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(m=>m.status==='done').sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div></body></html>`;
+</style></head><body><div class="report"><div class="actions"><button onclick="window.print()">🖨️ طباعة</button><button onclick="window.close()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(m.status==='done'?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(m=>m.status==='done').sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div>
+<!-- REPORT VIEWER MODAL -->
+<div id="reportViewer" style="display:none;position:fixed;inset:0;background:#f4f6f8;z-index:99998;overflow:auto;direction:rtl;">
+  <div style="position:sticky;top:0;background:#1565C0;color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;z-index:2;box-shadow:0 2px 8px #0003;">
+    <b>📋 تقرير الجولة</b>
+    <div style="display:flex;gap:7px;align-items:center;">
+      <button onclick="printCurrentReport()" style="border:0;border-radius:8px;padding:8px 12px;font-weight:700;">🖨️ طباعة</button>
+      <button onclick="closeReportViewer()" style="border:0;border-radius:8px;padding:8px 12px;font-weight:700;">✕ إغلاق</button>
+    </div>
+  </div>
+  <iframe id="reportFrame" title="تقرير الجولة" style="display:block;width:100%;height:calc(100vh - 58px);border:0;background:#fff;"></iframe>
+</div>
+
+</body></html>`;
+}
+function showReportHtml(html){
+  const viewer=document.getElementById('reportViewer');
+  const frame=document.getElementById('reportFrame');
+  if(!viewer||!frame){ toast('تعذر فتح عارض التقرير'); return; }
+  frame.srcdoc=html;
+  viewer.style.display='block';
+  document.body.style.overflow='hidden';
+}
+function closeReportViewer(){
+  const viewer=document.getElementById('reportViewer');
+  const frame=document.getElementById('reportFrame');
+  if(frame) frame.srcdoc='';
+  if(viewer) viewer.style.display='none';
+  document.body.style.overflow='';
+}
+function printCurrentReport(){
+  const frame=document.getElementById('reportFrame');
+  if(frame&&frame.contentWindow){ frame.contentWindow.focus(); frame.contentWindow.print(); }
 }
 function openRouteReport(){
   if(!meters.length){ toast('لا توجد بيانات لإنشاء التقرير'); return; }
-  showReportHtml(buildRouteReportHtml());
+  try{ showReportHtml(buildRouteReportHtml()); }catch(err){ console.error(err); toast('تعذر إنشاء التقرير'); }
 }
 function printRouteReport(){
   if(!meters.length){ toast('لا توجد بيانات لإنشاء التقرير'); return; }
-  showReportHtml(buildRouteReportHtml());
-  setTimeout(()=>{const f=document.getElementById('reportViewerFrame'); try{f.contentWindow.focus();f.contentWindow.print();}catch(e){}},500);
+  try{ showReportHtml(buildRouteReportHtml()); setTimeout(printCurrentReport,500); }catch(err){ console.error(err); toast('تعذر إنشاء التقرير'); }
 }
+
 async function exportCompleteRound(){
-  if(!meters.length){toast('لا توجد بيانات لتصديرها');return;}
-  const ok=await exportResultsZip();
-  if(!ok)return;
-  await exportTXT();
+  if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
+  await exportResultsZip();
   if(archiveStats(meters).pending===0) await archiveCurrentRound(true);
+  // exportResultsZip already contains the TXT, report, images and Excel. Save a standalone TXT too.
+  await exportTXT();
   toast(`✅ تم تصدير الجولة كاملة: ${getRouteExportName()}`);
 }
 
 /* ====== EXPORT RESULTS (Excel + Photos ZIP) ====== */
-async function exportResultsZip(){
-  if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return false; }
-  toast('جارِ تجهيز الملف...');
+async function ensureJSZip(){
+  if(typeof window.JSZip==='function') return true;
   try{
-    if(typeof JSZip==='undefined') throw new Error('JSZip غير متوفر');
-    if(typeof XLSX==='undefined') throw new Error('XLSX غير متوفر');
-
-    const rows = meters.map(m=>({
-      'رمز الزبون':m.meter,'الرقم التسلسلي للعداد':m.meterSerial||'','الاسم':m.name,'العنوان':m.address||'',
-      'نوع المشترك':m.subType||'','الهاتف':m.phone||'','رقم التعريف الوطني':m.nationalId||'',
-      'القراءة السابقة':m.prevIndex,'القراءة الجديدة':m.newIndex!=null?m.newIndex:'','الاستهلاك (م³)':m.consumption||'',
-      'المبلغ':m.amount||'','الحالة':m.status==='done'?'مرفوعة':(m.status==='anom'?'إشارة':'معلّقة'),
-      'كود الإشارات':m.annot||'','سبب القراءة الأقل/المساوية':m.lowReadingReason||'','الملاحظة':m.obs||'',
-      'لديه صورة':m.hasPhoto?'نعم':'لا','خط العرض':m.lat||'','خط الطول':m.lng||'',
-      'رابط الخريطة':(m.lat&&m.lng)?`https://www.google.com/maps?q=${m.lat},${m.lng}`:'',
-      'تاريخ الرفع':m.savedAt?new Date(m.savedAt).toLocaleString('ar'):''
-    }));
-    const ws=XLSX.utils.json_to_sheet(rows);
-    const headers=Object.keys(rows[0]||{});
-    ws['!cols']=headers.map(h=>({wch:Math.min(55,Math.max(10,Math.max(h.length,...rows.map(r=>String(r[h]??'').length))+2))}));
-    const range=XLSX.utils.decode_range(ws['!ref']);
-    for(let R=range.s.r+1;R<=range.e.r;R++){const c=XLSX.utils.encode_cell({r:R,c:18}),cell=ws[c];if(cell&&cell.v&&String(cell.v).startsWith('http'))cell.l={Target:cell.v,Tooltip:'افتح على Google Maps'};}
-    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'القراءات');
-    const xlsxOut=XLSX.write(wb,{type:'array',bookType:'xlsx'});
-
-    const zip=new JSZip();
-    const txtHeaders=['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];
-    const txtLines=[txtHeaders.join('\t')];
-    meters.forEach(m=>txtLines.push([m.meter,m.meterSerial||'',m.name,m.address||'',m.subType||'',m.phone||'',m.prevIndex,m.newIndex!=null?m.newIndex:'',m.consumption||'',m.amount||'',m.status,m.annot||'',m.lowReadingReason||'',(m.obs||'').replace(/\t|\n/g,' '),m.hasPhoto?'1':'0',m.savedAt||''].join('\t')));
-    const routeName=getRouteExportName();
-    zip.file(`${routeName}.txt`,'\uFEFF'+txtLines.join('\n'));
-    zip.file('client.xlsx',xlsxOut);
-
-    const photosFolder=zip.folder('الصور'); let photoCount=0;
-    const photoTasks=meters.filter(m=>m.hasPhoto).map(async m=>{
-      try{
-        const dataUrl=await Promise.race([sg('photo:'+m.id),new Promise(resolve=>setTimeout(()=>resolve(null),5000))]);
-        if(dataUrl){const b64=String(dataUrl).split(',')[1];if(b64){photosFolder.file(`${m.meter}.jpg`,b64,{base64:true});photoCount++;}}
-      }catch(e){}
+    await new Promise((resolve,reject)=>{
+      const old=document.querySelector('script[data-jszip-loader]');
+      if(old){ old.addEventListener('load',resolve,{once:true}); old.addEventListener('error',reject,{once:true}); return; }
+      const sc=document.createElement('script'); sc.src='./vendor/jszip.min.js'; sc.async=false; sc.dataset.jszipLoader='1';
+      sc.onload=resolve; sc.onerror=()=>reject(new Error('JSZip local file failed to load'));
+      document.head.appendChild(sc);
     });
-    await Promise.all(photoTasks);
+  }catch(e){ console.error('JSZip load failed',e); return false; }
+  return typeof window.JSZip==='function';
+}
+async function exportResultsZip(){
+  if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
+  toast('جارِ تجهيز الملف...');
+  if(!(await ensureJSZip())){ toast('تعذر تصدير ZIP: مكتبة الضغط غير متوفرة. أعد فتح التطبيق مرة واحدة مع الإنترنت ثم جرّب.'); return; }
 
-    const sigFolder=zip.folder('التوقيعات');
-    for(const m of meters){if(m.signatureData){const b=String(m.signatureData).split(',')[1];if(b)sigFolder.file(`${m.meter}.png`,b,{base64:true});}}
+  const rows = meters.map(m=>({
+    'رمز الزبون': m.meter,
+    'الرقم التسلسلي للعداد': m.meterSerial||'',
+    'الاسم': m.name,
+    'العنوان': m.address||'',
+    'نوع المشترك': m.subType||'',
+    'الهاتف': m.phone||'',
+    'رقم التعريف الوطني': m.nationalId||'',
+    'القراءة السابقة': m.prevIndex,
+    'القراءة الجديدة': m.newIndex!=null ? m.newIndex : '',
+    'الاستهلاك (م³)': m.consumption||'',
+    'المبلغ': m.amount||'',
+    'الحالة': m.status==='done'?'مرفوعة':(m.status==='anom'?'إشارة':'معلّقة'),
+    'كود الإشارات': m.annot||'',
+    'سبب القراءة الأقل/المساوية': m.lowReadingReason||'',
+    'الملاحظة': m.obs||'',
+    'لديه صورة': m.hasPhoto ? 'نعم' : 'لا',
+    'خط العرض': m.lat||'',
+    'خط الطول': m.lng||'',
+    'رابط الخريطة': (m.lat&&m.lng) ? `https://www.google.com/maps?q=${m.lat},${m.lng}` : '',
+    'تاريخ الرفع': m.savedAt ? new Date(m.savedAt).toLocaleString('ar') : ''
+  }));
 
-    let locRows='';
-    for(const m of meters){if(m.lat&&m.lng)locRows+=`<tr><td>${escH(m.meter)}</td><td>${escH(m.name)}</td><td>${escH(m.address||'—')}</td><td>📍 ${Number(m.lat).toFixed(6)}, ${Number(m.lng).toFixed(6)}</td></tr>`;}
-    zip.file('المواقع.html',`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>مواقع الزبائن</title><style>body{font-family:Arial,Tahoma,sans-serif;padding:12px;background:#f5f5f5}h2{color:#1565C0}table{width:100%;border-collapse:collapse;background:#fff}th{background:#1565C0;color:#fff;padding:10px}td{padding:9px;border-bottom:1px solid #eee}</style></head><body><h2>📍 مواقع الزبائن</h2><table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الإحداثيات</th></tr>${locRows}</table></body></html>`);
-    zip.file('تقرير الجولة.html',buildRouteReportHtml());
+  const ws = XLSX.utils.json_to_sheet(rows);
 
-    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6},streamFiles:true},meta=>{if(meta&&typeof meta.percent==='number')toast(`جارِ تجهيز ZIP ${Math.round(meta.percent)}%`);});
-    await saveExportToCliente(blob,`${routeName}.zip`);
-    toast(`✅ تم تجهيز ZIP للجولة ${routeName.replace(/^R/,'')} (${photoCount} صورة)`);
-    return true;
-  }catch(err){
-    console.error('ZIP export error',err);
-    toast('❌ تعذر تصدير ZIP: '+(err&&err.message?err.message:'خطأ غير معروف'));
-    return false;
+  // ضبط عرض أعمدة Excel تلقائياً حسب محتوى كل عمود:
+  // الأعمدة القصيرة تبقى قصيرة، والأعمدة الطويلة (مثل العنوان
+  // ورقم التعريف الوطني) تأخذ عرضاً أكبر بدون تعديل يدوي.
+  const headers = Object.keys(rows[0] || {});
+  ws['!cols'] = headers.map((header, c) => {
+    let maxLen = String(header).length;
+    for (const row of rows) {
+      const value = row[header] == null ? '' : String(row[header]);
+      // نحسب طولاً تقريبياً مناسباً للعربية والنصوص الطويلة.
+      maxLen = Math.max(maxLen, value.length);
+    }
+    // حدود عملية حتى لا تصبح الأعمدة الضخمة جداً مزعجة.
+    const width = Math.min(55, Math.max(10, maxLen + 2));
+    return { wch: width };
+  });
+
+  // جعل روابط الخريطة قابلة للنقر في Excel
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for(let R = range.s.r + 1; R <= range.e.r; R++){
+    const cellAddr = XLSX.utils.encode_cell({r: R, c: 18}); // عمود Q (رابط الخريطة)
+    const cell = ws[cellAddr];
+    if(cell && cell.v && String(cell.v).startsWith('http')){
+      cell.l = { Target: cell.v, Tooltip: 'افتح على Google Maps' };
+    }
   }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'القراءات');
+  const xlsxOut = XLSX.write(wb, {type:'array', bookType:'xlsx'});
+
+  const zip = new JSZip();
+  const txtHeaders = ['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];
+  const txtLines = [txtHeaders.join('\t')];
+  meters.forEach(m=>txtLines.push([m.meter,m.meterSerial||'',m.name,m.address||'',m.subType||'',m.phone||'',m.prevIndex,m.newIndex!=null?m.newIndex:'',m.consumption||'',m.amount||'',m.status,m.annot||'',m.lowReadingReason||'',(m.obs||'').replace(/\t|\n/g,' '),m.hasPhoto?'1':'0',m.savedAt||''].join('\t')));
+  zip.file(`${getRouteExportName()}.txt`, '\uFEFF'+txtLines.join('\n'));
+  zip.file(`client.xlsx`, xlsxOut);
+
+  // ===== مجلد الصور فقط =====
+  const photosFolder = zip.folder('الصور');
+  let photoCount = 0;
+  for(const m of meters){
+    if(m.hasPhoto){
+      const dataUrl = await sg('photo:'+m.id);
+      if(dataUrl){
+        const base64Data = dataUrl.split(',')[1];
+        photosFolder.file(`${m.meter}.jpg`, base64Data, {base64:true});
+        photoCount++;
+      }
+    }
+  }
+
+  // ===== توقيعات الزبائن =====
+  const sigFolder = zip.folder('التوقيعات');
+  let sigCount=0;
+  for(const m of meters){ if(m.signatureData){ const b=m.signatureData.split(',')[1]; if(b){ sigFolder.file(`${m.meter}.png`,b,{base64:true}); sigCount++; } } }
+
+  // ===== ملف المواقع HTML — روابط قابلة للنقر مباشرة =====
+  let locRows = '';
+  for(const m of meters){
+    if(m.lat && m.lng){
+      locRows += `<tr>
+        <td>${m.meter}</td>
+        <td>${m.name}</td>
+        <td>${m.address||'—'}</td>
+        <td>📍 ${Number(m.lat).toFixed(6)}, ${Number(m.lng).toFixed(6)}</td>
+      </tr>`;
+    }
+  }
+  const locHtml = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مواقع الزبائن</title>
+<style>
+  body{font-family:Tajawal,Arial,sans-serif;padding:12px;background:#f5f5f5;}
+  h2{color:#1565C0;margin-bottom:12px;}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+  th{background:#1565C0;color:#fff;padding:10px 8px;font-size:13px;}
+  td{padding:9px 8px;border-bottom:1px solid #eee;font-size:13px;}
+  tr:last-child td{border-bottom:none;}
+  a{text-decoration:none;}
+</style>
+</head>
+<body>
+<h2>📍 مواقع الزبائن</h2>
+<table>
+  <tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>إحداثيات الموقع</th></tr>
+  ${locRows}
+</table>
+
+<!-- REPORT VIEWER MODAL -->
+<div id="reportViewer" style="display:none;position:fixed;inset:0;background:#f4f6f8;z-index:99998;overflow:auto;direction:rtl;">
+  <div style="position:sticky;top:0;background:#1565C0;color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;z-index:2;box-shadow:0 2px 8px #0003;">
+    <b>📋 تقرير الجولة</b>
+    <div style="display:flex;gap:7px;align-items:center;">
+      <button onclick="printCurrentReport()" style="border:0;border-radius:8px;padding:8px 12px;font-weight:700;">🖨️ طباعة</button>
+      <button onclick="closeReportViewer()" style="border:0;border-radius:8px;padding:8px 12px;font-weight:700;">✕ إغلاق</button>
+    </div>
+  </div>
+  <iframe id="reportFrame" title="تقرير الجولة" style="display:block;width:100%;height:calc(100vh - 58px);border:0;background:#fff;"></iframe>
+</div>
+
+</body></html>`;
+  zip.file('المواقع.html', locHtml);
+
+  // تقرير الجولة: يمكن فتحه من الهاتف وطباعته، ويبقى داخل ZIP مع بقية الملفات.
+  zip.file('تقرير الجولة.html', buildRouteReportHtml());
+
+  const blob = await zip.generateAsync({type:'blob'});
+  await saveExportToCliente(blob, `${getRouteExportName()}.zip`);
+  toast(`✅ تم تجهيز ZIP للجولة ${getRouteExportName().replace(/^R/,'')} (${photoCount} صورة)`);
 }
 
 /* ====== EXPORT / IMPORT (JSON backup) ====== */
@@ -2216,5 +2336,18 @@ function showUpdateBanner(worker){
   };
 }
 </script>
+
+<!-- REPORT VIEWER MODAL -->
+<div id="reportViewer" style="display:none;position:fixed;inset:0;background:#f4f6f8;z-index:99998;overflow:auto;direction:rtl;">
+  <div style="position:sticky;top:0;background:#1565C0;color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;z-index:2;box-shadow:0 2px 8px #0003;">
+    <b>📋 تقرير الجولة</b>
+    <div style="display:flex;gap:7px;align-items:center;">
+      <button onclick="printCurrentReport()" style="border:0;border-radius:8px;padding:8px 12px;font-weight:700;">🖨️ طباعة</button>
+      <button onclick="closeReportViewer()" style="border:0;border-radius:8px;padding:8px 12px;font-weight:700;">✕ إغلاق</button>
+    </div>
+  </div>
+  <iframe id="reportFrame" title="تقرير الجولة" style="display:block;width:100%;height:calc(100vh - 58px);border:0;background:#fff;"></iframe>
+</div>
+
 </body>
 </html>
