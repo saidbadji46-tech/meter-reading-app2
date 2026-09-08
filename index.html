@@ -250,6 +250,21 @@ main{flex:1;overflow-y:auto;}
   font-family:'Tajawal',sans-serif;font-size:14px;font-weight:700;color:var(--muted);
   padding:13px 18px;cursor:pointer;
 }
+.postsave-bar{
+  display:none;position:sticky;bottom:0;z-index:35;
+  background:#fff;border-top:1px solid var(--line);
+  padding:10px 14px;flex-direction:column;gap:8px;
+}
+.postsave-bar.show{display:flex;}
+.postsave-status{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:var(--success);}
+.postsave-actions{display:flex;gap:8px;}
+.btn-quick{
+  flex:1;background:var(--surface);border:1.5px solid var(--line);border-radius:8px;
+  font-family:'Tajawal',sans-serif;font-size:13px;font-weight:700;color:var(--ink);
+  padding:11px 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.btn-quick.next{background:var(--blue);color:#fff;border-color:var(--blue);flex:1.3;}
+body.dark .postsave-bar{background:var(--card);}
 
 /* ===== STATS VIEW ===== */
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px;}
@@ -267,6 +282,32 @@ main{flex:1;overflow-y:auto;}
 .val-pending{color:var(--muted);}
 .val-anom{color:var(--warning);}
 .val-total{color:var(--blue);}
+.val-danger{color:#e53935;}
+.val-leak{color:#0288d1;}
+.route-stats-panel{margin:14px 14px 0;background:#fff;border-radius:12px;border:1px solid var(--line);overflow:hidden;}
+.route-stats-panel .rsp-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);}
+.route-stats-panel .rsp-title{font-size:14px;font-weight:900;color:var(--text);}
+.route-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);}
+.route-stat-box{background:#fff;padding:12px 6px;text-align:center;}
+.route-stat-box .val{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:800;display:block;margin-bottom:3px;line-height:1.1;}
+.route-stat-box .lbl{font-size:10px;color:var(--muted);font-weight:700;line-height:1.35;display:block;}
+.route-progress-wrap{padding:12px 14px;}
+.route-progress-track{height:10px;border-radius:6px;background:var(--line);overflow:hidden;}
+.route-progress-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--success));border-radius:6px;transition:width .3s;}
+body.dark .route-stats-panel,body.dark .route-stat-box{background:var(--card);}
+body.dark .route-stats-grid{background:var(--line);}
+.route-map-card{margin:14px 14px 0;background:#fff;border-radius:12px;border:1px solid var(--line);overflow:hidden;}
+.route-map-toolbar{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);}
+.route-map-title{font-size:14px;font-weight:900;color:var(--text);}
+.route-map-canvas{height:280px;width:100%;background:#eef2f5;position:relative;}
+.route-map-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12.5px;text-align:center;padding:14px;}
+.route-map-legend{display:flex;gap:14px;padding:9px 12px;font-size:11.5px;color:var(--muted);font-weight:700;border-top:1px solid var(--line);}
+.route-map-legend .warn{color:#e65100;}
+.nogps-badge{display:inline-block;padding:2px 8px;border-radius:20px;background:#fff3e0;color:#e65100;font-size:10.5px;font-weight:800;margin-right:6px;}
+.map-popup{font-family:'Tajawal',sans-serif;font-size:12.5px;line-height:1.7;text-align:right;}
+.map-popup b{color:#1565c0;}
+body.dark .route-map-card{background:var(--card);}
+body.dark .route-map-canvas{background:#243447;}
 .chart-wrap{background:#fff;border-radius:10px;border:1px solid var(--line);margin:0 14px 14px;padding:14px;}
 .chart-title{font-size:13px;font-weight:700;margin-bottom:12px;}
 .chart-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
@@ -401,6 +442,37 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
     </div>
     <button class="filter-btn search-action" type="button" onclick="doSearch()">بحث</button>
   </div>
+
+  <!-- Route stats panel: persistent, always visible above the tabs, updates live -->
+  <div class="route-stats-panel" id="routeStatsPanel">
+    <div class="rsp-head" onclick="toggleRouteStatsPanel()" style="cursor:pointer;">
+      <span class="rsp-title">🎯 لوحة إحصائيات الجولة</span>
+      <span id="rspToggleIcon" style="font-size:12px;color:var(--muted);">▲</span>
+    </div>
+    <div id="routeStatsBody">
+      <div class="route-progress-wrap">
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:6px;">
+          <span>📊 نسبة إنجاز الجولة</span><span id="rsProgressLabel">0%</span>
+        </div>
+        <div class="route-progress-track"><div class="route-progress-fill" id="rsProgressFill" style="width:0%;"></div></div>
+      </div>
+      <div class="route-stats-grid">
+        <div class="route-stat-box"><span class="val val-total" id="rsTotal">0</span><span class="lbl">👥 عدد الزبائن</span></div>
+        <div class="route-stat-box"><span class="val val-done" id="rsDone">0</span><span class="lbl">✅ عدادات مقروءة</span></div>
+        <div class="route-stat-box"><span class="val val-pending" id="rsPending">0</span><span class="lbl">⏳ عدادات متبقية</span></div>
+        <div class="route-stat-box"><span class="val val-anom" id="rsInh">0</span><span class="lbl">🚫 عدد INH</span></div>
+        <div class="route-stat-box"><span class="val val-anom" id="rsZero">0</span><span class="lbl">صفر استهلاك</span></div>
+        <div class="route-stat-box"><span class="val val-danger" id="rsHigh">0</span><span class="lbl">استهلاك ضخم</span></div>
+        <div class="route-stat-box"><span class="val val-total" id="rsConsumption">0</span><span class="lbl">💧 كمية الاستهلاك م³</span></div>
+        <div class="route-stat-box"><span class="val val-done" id="rsAmount">0</span><span class="lbl">💰 الثمن الكلي للجولة</span></div>
+        <div class="route-stat-box"><span class="val val-leak" id="rsLeak">0</span><span class="lbl">💧 تسربات FC</span></div>
+        <div class="route-stat-box"><span class="val val-danger" id="rsProblems">0</span><span class="lbl">⚠️ عدادات ذات مشاكل</span></div>
+        <div class="route-stat-box"><span class="val val-total" id="rsGps">0</span><span class="lbl">📍 مواقع مسجلة</span></div>
+        <div class="route-stat-box"><span class="val val-done" id="rsProgressNum">0%</span><span class="lbl">📊 نسبة الإنجاز</span></div>
+      </div>
+    </div>
+  </div>
+
   <div class="tabs" id="tabsBar">
     <button class="tab-btn active" data-tab="tab-all" onclick="switchTab('tab-all',this)">الكل</button>
     <button class="tab-btn" data-tab="tab-done" onclick="switchTab('tab-done',this)">مرفوعة ✓</button>
@@ -475,6 +547,19 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
 
     <!-- MAP TAB — المواقع -->
     <div id="tab-map" class="view">
+      <div class="route-map-card">
+        <div class="route-map-toolbar">
+          <span class="route-map-title">🗺️ خريطة الجولة</span>
+          <button class="btn-ghost" onclick="findNearestCustomer()" style="padding:7px 12px;font-size:12px;">🧭 أقرب زبون</button>
+        </div>
+        <div id="routeMapCanvas" class="route-map-canvas">
+          <div class="route-map-placeholder" id="routeMapPlaceholder">جارٍ تحميل الخريطة...</div>
+        </div>
+        <div class="route-map-legend">
+          <span>📍 <b id="mapGpsCount">0</b> موقع مسجّل</span>
+          <span class="warn">⚠️ <b id="mapNoGpsCount">0</b> بدون GPS</span>
+        </div>
+      </div>
       <div style="padding:12px 14px 4px;font-size:13px;font-weight:700;color:var(--muted);">
         مواقع الزبائن المسجّلة
       </div>
@@ -581,12 +666,20 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
       </div>
 
       <div style="height:72px;"></div>
-      <div class="save-bar">
+      <div class="save-bar" id="saveBar">
         <button class="btn-skip" onclick="skipMeter()">تخطّي</button>
         <button class="btn-save" onclick="saveReleve()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg>
           حفظ القراءة
         </button>
+      </div>
+      <div class="postsave-bar" id="postSaveBar">
+        <div class="postsave-status">✅ تم حفظ القراءة — إجراءات سريعة:</div>
+        <div class="postsave-actions">
+          <button type="button" class="btn-quick" onclick="postSaveScan()">📷 مسح الكود</button>
+          <button type="button" class="btn-quick" onclick="postSaveSignature()">✍️ توقيع الزبون</button>
+          <button type="button" class="btn-quick next" onclick="proceedAfterSave()" id="postSaveNextBtn">التالي ▶</button>
+        </div>
       </div>
     </div>
 
@@ -857,6 +950,8 @@ async function loadData(){
   document.getElementById('mCurrency').value = settings.currency;
   document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
   document.getElementById('topBadge').textContent = settings.routeNum;
+  try{ const rc = await sg('routeStatsCollapsed'); routeStatsCollapsed = rc ? JSON.parse(rc) : false; }catch(e){ routeStatsCollapsed = false; }
+  applyRouteStatsCollapse();
   renderAll();
   setTimeout(()=>{const sp=document.getElementById('splash');if(sp){sp.style.opacity='0';setTimeout(()=>sp.remove(),400);}},700);
   setTimeout(showPinOverlay,750);
@@ -895,7 +990,7 @@ function switchTab(tabId, btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   navSwitchVisible();
-  if(tabId === 'tab-map') renderMapList();
+  if(tabId === 'tab-map'){ renderMapList(); renderRouteMap(); }
   else renderAll();
 }
 
@@ -911,6 +1006,8 @@ function goBack(){
   document.getElementById('topBadge').textContent=settings.routeNum;
   fabEl.style.display='flex';
   document.querySelector('.bottom-nav').style.display='flex';
+  const rsp=document.getElementById('routeStatsPanel'); if(rsp) rsp.style.display='block';
+  document.getElementById('tabsBar').style.display='flex';
   formSnapshotAtOpen = null;
 }
 
@@ -943,6 +1040,7 @@ function renderAll(){
   renderListTo('listPending', pending);
   renderListTo('listAnom', anom);
   renderStats2(done, pending, anom);
+  renderRouteStatsPanel();
   renderDeepDashboard();
   renderArchive();
 }
@@ -1011,6 +1109,57 @@ function renderStats2(done, pending, anom){
   bar('cDone',done.length); cnt('cDoneCnt',done.length);
   bar('cPending',pending.length); cnt('cPendingCnt',pending.length);
   bar('cAnom',anom.length); cnt('cAnomCnt',anom.length);
+}
+
+let routeStatsCollapsed = false;
+function applyRouteStatsCollapse(){
+  const body=document.getElementById('routeStatsBody');
+  const icon=document.getElementById('rspToggleIcon');
+  if(!body||!icon) return;
+  body.style.display = routeStatsCollapsed ? 'none' : 'block';
+  icon.textContent = routeStatsCollapsed ? '▼' : '▲';
+}
+function toggleRouteStatsPanel(){
+  routeStatsCollapsed = !routeStatsCollapsed;
+  applyRouteStatsCollapse();
+  ss('routeStatsCollapsed', JSON.stringify(routeStatsCollapsed));
+}
+
+function renderRouteStatsPanel(){
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  const total=meters.length;
+  const doneMeters=meters.filter(m=>m.status==='done');
+  const anomMeters=meters.filter(m=>m.status==='anom');
+  const pending=total-doneMeters.length-anomMeters.length;
+  const codesOf=m=>String(m.annot||'').split('+').map(c=>c.trim()).filter(Boolean);
+  const inhCount=meters.filter(m=>codesOf(m).includes('INH')).length;
+  const leakCount=meters.filter(m=>codesOf(m).includes('FC')).length;
+  const problemCount=anomMeters.filter(m=>{const c=codesOf(m).filter(x=>x!=='INH'&&x!=='FC');return c.length>0;}).length;
+  const consumptions=doneMeters.map(m=>Number(m.consumption)||0);
+  const avgCons=consumptions.length?consumptions.reduce((a,b)=>a+b,0)/consumptions.length:0;
+  const highThreshold=Math.max(avgCons*3, avgCons+30, 50);
+  const zeroCount=doneMeters.filter(m=>(Number(m.consumption)||0)===0).length;
+  const highCount=doneMeters.filter(m=>(Number(m.consumption)||0)>highThreshold).length;
+  const totalConsumption=consumptions.reduce((a,b)=>a+b,0);
+  const totalAmount=doneMeters.reduce((s,m)=>s+(Number(m.amount)||0),0);
+  const gpsCount=meters.filter(m=>m.lat&&m.lng).length;
+  const progress=total?Math.round(doneMeters.length/total*100):0;
+  const currency=(settings&&settings.currency)||'';
+
+  set('rsTotal',total);
+  set('rsDone',doneMeters.length);
+  set('rsPending',pending);
+  set('rsInh',inhCount);
+  set('rsZero',zeroCount);
+  set('rsHigh',highCount);
+  set('rsConsumption',totalConsumption.toFixed(totalConsumption%1?1:0));
+  set('rsAmount',totalAmount.toFixed(2)+(currency?(' '+currency):''));
+  set('rsLeak',leakCount);
+  set('rsProblems',problemCount);
+  set('rsGps',gpsCount);
+  set('rsProgressNum',progress+'%');
+  set('rsProgressLabel',progress+'%');
+  const fill=document.getElementById('rsProgressFill'); if(fill) fill.style.width=progress+'%';
 }
 
 /* ===== PRO DASHBOARD / ARCHIVE / VALIDATION ===== */
@@ -1140,6 +1289,7 @@ async function commitCustomerNationalId(){
 
 function openMeter(id){
   currentMeterId = id;
+  hidePostSaveBar();
   const m = meters.find(x=>x.id===id);
   if(!m) return;
   selectedAnnots = normalizeAnnotList(m.annot);
@@ -1196,6 +1346,8 @@ function openMeter(id){
   if(customerNameEl) customerNameEl.textContent = m.name || '—';
   fabEl.style.display='none';
   document.querySelector('.bottom-nav').style.display='none';
+  const rsp=document.getElementById('routeStatsPanel'); if(rsp) rsp.style.display='none';
+  document.getElementById('tabsBar').style.display='none';
   previewCons();
   formSnapshotAtOpen = currentFormSnapshot();
   // show GPS button if already captured
@@ -1368,13 +1520,33 @@ async function saveReleve(){
   if(archiveStats(meters).pending===0) await archiveCurrentRound(true);
   toast('✅ تم الحفظ');
 
-  const nextId = findNextPendingId(m.id);
+  pendingNextMeterId = findNextPendingId(m.id);
+  const saveBar=document.getElementById('saveBar'), postBar=document.getElementById('postSaveBar'), nextBtn=document.getElementById('postSaveNextBtn');
+  if(saveBar) saveBar.style.display='none';
+  if(postBar) postBar.classList.add('show');
+  if(nextBtn) nextBtn.textContent = pendingNextMeterId ? 'التالي ▶' : '🎉 إنهاء';
+}
+
+let pendingNextMeterId = null;
+function hidePostSaveBar(){
+  const saveBar=document.getElementById('saveBar'), postBar=document.getElementById('postSaveBar');
+  if(postBar) postBar.classList.remove('show');
+  if(saveBar) saveBar.style.display='flex';
+}
+function proceedAfterSave(){
+  const nextId = pendingNextMeterId;
+  hidePostSaveBar();
   if(nextId){
     openMeter(nextId);
   }else{
     toast('🎉 تم الانتهاء من كل العدادات المعلّقة');
     goBack();
   }
+}
+function postSaveScan(){ openBarcodeScanner(); }
+function postSaveSignature(){
+  const box=document.querySelector('.signature-box');
+  if(box) box.scrollIntoView({behavior:'smooth', block:'center'});
 }
 
 async function skipMeter(){
@@ -1555,11 +1727,14 @@ function renderMapList(){
   const el = document.getElementById('mapList');
   if(!el) return;
   const withLoc = meters.filter(m=>m.lat && m.lng);
-  if(!withLoc.length){
+  const withoutLoc = meters.filter(m=>!(m.lat && m.lng));
+  const gpsCountEl=document.getElementById('mapGpsCount'); if(gpsCountEl) gpsCountEl.textContent=withLoc.length;
+  const noGpsCountEl=document.getElementById('mapNoGpsCount'); if(noGpsCountEl) noGpsCountEl.textContent=withoutLoc.length;
+  if(!withLoc.length && !withoutLoc.length){
     el.innerHTML = `<div class="empty-state"><div class="ico">📍</div><p>لا توجد مواقع مسجّلة بعد.<br>افتح أي زبون واضغط "تسجيل الموقع الآن".</p></div>`;
     return;
   }
-  el.innerHTML = withLoc.map(m=>`<div class="sub-card" style="flex-direction:column;align-items:flex-start;gap:8px;">
+  const doneCards = withLoc.map(m=>`<div class="sub-card" style="flex-direction:column;align-items:flex-start;gap:8px;">
     <div style="display:flex;align-items:center;gap:10px;width:100%;">
       <div class="sub-avatar">${(m.name[0]||'?')}</div>
       <div class="sub-info" style="flex:1;">
@@ -1571,6 +1746,17 @@ function renderMapList(){
       📍 فتح الموقع على الخريطة
     </a>
   </div>`).join('');
+  const noGpsCards = withoutLoc.map(m=>`<div class="sub-card" style="flex-direction:column;align-items:flex-start;gap:8px;border:1px solid #ffcc80;background:#fff8f0;" onclick="openMeter('${m.id}')">
+    <div style="display:flex;align-items:center;gap:10px;width:100%;">
+      <div class="sub-avatar" style="background:#fff3e0;color:#e65100;">${(m.name[0]||'?')}</div>
+      <div class="sub-info" style="flex:1;">
+        <div class="name">${escH(m.name)}<span class="nogps-badge">⚠️ بدون GPS</span></div>
+        <div class="meta">${escH(m.meter)} · ${escH(m.address||'—')}</div>
+      </div>
+    </div>
+  </div>`).join('');
+  const noGpsSection = withoutLoc.length ? `<div style="padding:10px 14px 4px;font-size:12.5px;font-weight:800;color:#e65100;">⚠️ زبائن بدون موقع مسجّل (${withoutLoc.length}) — اضغط لفتح الملف وتسجيل الموقع</div>${noGpsCards}` : '';
+  el.innerHTML = doneCards + noGpsSection;
 }
 
 function renderMapLink(m){
@@ -1595,6 +1781,96 @@ function renderLocationBtn(m){
   }
 }
 
+/* ====== ROUTE MAP (Leaflet, lazy-loaded) ====== */
+let routeMapObj=null, routeMapMarkersLayer=null, routeMapUserMarker=null;
+function ensureLeafletCss(){
+  if(document.getElementById('leafletCssTag')) return;
+  const link=document.createElement('link');
+  link.id='leafletCssTag'; link.rel='stylesheet';
+  link.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+  document.head.appendChild(link);
+}
+async function ensureLeaflet(){
+  if(typeof window.L==='object' && window.L.map) return true;
+  ensureLeafletCss();
+  try{ await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'); }
+  catch(e){ console.warn('Leaflet load failed', e); }
+  return typeof window.L==='object' && !!window.L.map;
+}
+function meterPopupHtml(m){
+  const lastReading = m.status==='done' ? `${escH(m.newIndex??'—')} (استهلاك ${escH(m.consumption??'—')} م³)` : 'لم تُقرأ بعد';
+  return `<div class="map-popup"><b>${escH(m.name)}</b><br>رمز الزبون: ${escH(m.meter)}<br>آخر قراءة: ${lastReading}<br><a href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank" rel="noopener">🧭 فتح الاتجاهات</a></div>`;
+}
+async function renderRouteMap(){
+  const canvas=document.getElementById('routeMapCanvas');
+  const placeholder=document.getElementById('routeMapPlaceholder');
+  if(!canvas) return;
+  const withLoc = meters.filter(m=>m.lat && m.lng);
+  const ok = await ensureLeaflet();
+  if(!ok){
+    if(placeholder){ placeholder.style.display='flex'; placeholder.textContent='❌ تعذر تحميل الخريطة (تحقق من الاتصال بالإنترنت). القائمة أسفله تبقى تعمل بدون إنترنت.'; }
+    return;
+  }
+  if(placeholder) placeholder.style.display='none';
+  if(!routeMapObj){
+    routeMapObj = L.map('routeMapCanvas', { zoomControl:true, attributionControl:true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom:19, attribution:'© OpenStreetMap'
+    }).addTo(routeMapObj);
+    routeMapMarkersLayer = L.layerGroup().addTo(routeMapObj);
+  }
+  routeMapMarkersLayer.clearLayers();
+  if(!withLoc.length){
+    routeMapObj.setView([28.0,2.0], 5); // default view (Algeria) when no points yet
+    return;
+  }
+  const bounds=[];
+  withLoc.forEach(m=>{
+    const color = m.status==='done' ? '#2e7d32' : (m.status==='anom' ? '#f9a825' : '#1565c0');
+    const marker=L.circleMarker([Number(m.lat),Number(m.lng)], {
+      radius:9, color:'#fff', weight:2, fillColor:color, fillOpacity:0.95
+    }).bindPopup(meterPopupHtml(m));
+    marker.addTo(routeMapMarkersLayer);
+    bounds.push([Number(m.lat),Number(m.lng)]);
+  });
+  if(bounds.length===1){ routeMapObj.setView(bounds[0], 16); }
+  else { routeMapObj.fitBounds(bounds, {padding:[28,28]}); }
+  setTimeout(()=>{ if(routeMapObj) routeMapObj.invalidateSize(); }, 200);
+}
+function haversineMeters(lat1,lng1,lat2,lng2){
+  const R=6371000, toRad=x=>x*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLng=toRad(lng2-lng1);
+  const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function findNearestCustomer(){
+  if(!navigator.geolocation){ toast('❌ الموقع الجغرافي غير مدعوم على هذا الجهاز'); return; }
+  toast('📡 يتم تحديد موقعك...');
+  navigator.geolocation.getCurrentPosition(async (pos)=>{
+    const myLat=pos.coords.latitude, myLng=pos.coords.longitude;
+    let candidates = meters.filter(m=>m.lat && m.lng && m.status!=='done' && m.status!=='anom');
+    if(!candidates.length) candidates = meters.filter(m=>m.lat && m.lng);
+    if(!candidates.length){ toast('❌ لا توجد مواقع مسجّلة للمقارنة'); return; }
+    let best=null, bestDist=Infinity;
+    candidates.forEach(m=>{
+      const d=haversineMeters(myLat,myLng,Number(m.lat),Number(m.lng));
+      if(d<bestDist){ bestDist=d; best=m; }
+    });
+    if(!best) return;
+    const distLabel = bestDist>=1000 ? (bestDist/1000).toFixed(2)+' كم' : Math.round(bestDist)+' م';
+    toast(`🧭 أقرب زبون: ${best.name} — ${distLabel}`);
+    const ok = await ensureLeaflet();
+    if(ok && routeMapObj){
+      routeMapObj.setView([Number(best.lat),Number(best.lng)], 17);
+      routeMapMarkersLayer.eachLayer(lyr=>{
+        const ll=lyr.getLatLng();
+        if(Math.abs(ll.lat-Number(best.lat))<1e-9 && Math.abs(ll.lng-Number(best.lng))<1e-9) lyr.openPopup();
+      });
+    }
+  }, ()=>{
+    toast('❌ تعذر تحديد موقعك الحالي. تأكد من تفعيل GPS والصلاحيات.');
+  }, { enableHighAccuracy:true, timeout:12000, maximumAge:0 });
+}
 
 /* ====== OCR — digit recognition using Canvas analysis (no internet needed) ====== */
 function withTimeout(promise, ms){
@@ -2061,7 +2337,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=22');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=24');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -2127,7 +2403,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=22').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=24').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
