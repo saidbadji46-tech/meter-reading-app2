@@ -2053,18 +2053,6 @@ function buildRouteReportHtml(){
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير الجولة ${route}</title><style>
 @page{size:A4;margin:12mm}body{font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#222;margin:0;padding:16px}.report{max-width:1100px;margin:auto;background:#fff;padding:22px;border-radius:12px;box-shadow:0 2px 12px #0001}h1{margin:0 0 5px;color:#1565c0;font-size:25px}h2{font-size:17px;margin:22px 0 10px;color:#1565c0}.meta{color:#666;font-size:12px;line-height:1.8}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:16px}.card{border:1px solid #ddd;border-radius:9px;padding:12px;text-align:center}.num{font-size:22px;font-weight:800;color:#1565c0}.lbl{font-size:11px;color:#666;margin-top:4px}.bar{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin-top:12px}.bar>span{display:block;height:100%;background:#1565c0;width:${st.progress}%}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#1565c0;color:white;padding:8px}td{padding:7px;border-bottom:1px solid #eee;text-align:right}a{color:#1565c0;font-weight:bold;text-decoration:none}.actions{position:sticky;top:0;background:#fff;padding-bottom:10px;display:flex;gap:8px}.actions button{border:0;border-radius:8px;padding:10px 14px;background:#1565c0;color:#fff;font-weight:bold}@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}table{font-size:9px}.report{padding:12px}}@media print{body{background:#fff;padding:0}.report{box-shadow:none;padding:0}.actions{display:none}.card{break-inside:avoid}}
 </style></head><body><div class="report"><div class="actions"><button onclick="window.print()">🖨️ طباعة</button><button onclick="window.close()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(m.status==='done'?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(m=>m.status==='done').sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div>
-<!-- REPORT VIEWER MODAL -->
-<div id="reportViewer" style="display:none;position:fixed;inset:0;background:#f4f6f8;z-index:99998;overflow:auto;direction:rtl;">
-  <div style="position:sticky;top:0;background:#1565C0;color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;z-index:2;box-shadow:0 2px 8px #0003;">
-    <b>📋 تقرير الجولة</b>
-    <div style="display:flex;gap:7px;align-items:center;">
-      <button onclick="printCurrentReport()" style="border:0;border-radius:8px;padding:8px 12px;font-weight:700;">🖨️ طباعة</button>
-      <button onclick="closeReportViewer()" style="border:0;border-radius:8px;padding:8px 12px;font-weight:700;">✕ إغلاق</button>
-    </div>
-  </div>
-  <iframe id="reportFrame" title="تقرير الجولة" style="display:block;width:100%;height:calc(100vh - 58px);border:0;background:#fff;"></iframe>
-</div>
-
 </body></html>`;
 }
 function showReportHtml(html){
@@ -2107,17 +2095,29 @@ async function exportCompleteRound(){
 /* ====== EXPORT RESULTS (Excel + Photos ZIP) ====== */
 async function ensureJSZip(){
   if(typeof window.JSZip==='function') return true;
+  const src = new URL('vendor/jszip.min.js', document.baseURI).href;
   try{
-    await new Promise((resolve,reject)=>{
-      const old=document.querySelector('script[data-jszip-loader]');
-      if(old){ old.addEventListener('load',resolve,{once:true}); old.addEventListener('error',reject,{once:true}); return; }
-      const sc=document.createElement('script'); sc.src='./vendor/jszip.min.js'; sc.async=false; sc.dataset.jszipLoader='1';
-      sc.onload=resolve; sc.onerror=()=>reject(new Error('JSZip local file failed to load'));
-      document.head.appendChild(sc);
-    });
-  }catch(e){ console.error('JSZip load failed',e); return false; }
+    const existing=document.querySelector('script[data-jszip-loader]');
+    if(existing){
+      await new Promise((resolve,reject)=>{ existing.addEventListener('load',resolve,{once:true}); existing.addEventListener('error',reject,{once:true}); });
+    } else {
+      await new Promise((resolve,reject)=>{
+        const sc=document.createElement('script'); sc.src=src; sc.async=false; sc.dataset.jszipLoader='1';
+        sc.onload=resolve; sc.onerror=()=>reject(new Error('JSZip load failed'));
+        document.head.appendChild(sc);
+      });
+    }
+  }catch(e){
+    try{
+      const r=await fetch(src,{cache:'no-store'});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const code=await r.text();
+      (0,eval)(code);
+    }catch(e2){ console.error('JSZip load failed',e,e2); }
+  }
   return typeof window.JSZip==='function';
 }
+
 async function exportResultsZip(){
   if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
   toast('جارِ تجهيز الملف...');
@@ -2237,7 +2237,6 @@ async function exportResultsZip(){
   ${locRows}
 </table>
 
-<!-- REPORT VIEWER MODAL -->
 <div id="reportViewer" style="display:none;position:fixed;inset:0;background:#f4f6f8;z-index:99998;overflow:auto;direction:rtl;">
   <div style="position:sticky;top:0;background:#1565C0;color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;z-index:2;box-shadow:0 2px 8px #0003;">
     <b>📋 تقرير الجولة</b>
@@ -2248,7 +2247,6 @@ async function exportResultsZip(){
   </div>
   <iframe id="reportFrame" title="تقرير الجولة" style="display:block;width:100%;height:calc(100vh - 58px);border:0;background:#fff;"></iframe>
 </div>
-
 </body></html>`;
   zip.file('المواقع.html', locHtml);
 
@@ -2336,18 +2334,6 @@ function showUpdateBanner(worker){
   };
 }
 </script>
-
-<!-- REPORT VIEWER MODAL -->
-<div id="reportViewer" style="display:none;position:fixed;inset:0;background:#f4f6f8;z-index:99998;overflow:auto;direction:rtl;">
-  <div style="position:sticky;top:0;background:#1565C0;color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;z-index:2;box-shadow:0 2px 8px #0003;">
-    <b>📋 تقرير الجولة</b>
-    <div style="display:flex;gap:7px;align-items:center;">
-      <button onclick="printCurrentReport()" style="border:0;border-radius:8px;padding:8px 12px;font-weight:700;">🖨️ طباعة</button>
-      <button onclick="closeReportViewer()" style="border:0;border-radius:8px;padding:8px 12px;font-weight:700;">✕ إغلاق</button>
-    </div>
-  </div>
-  <iframe id="reportFrame" title="تقرير الجولة" style="display:block;width:100%;height:calc(100vh - 58px);border:0;background:#fff;"></iframe>
-</div>
 
 </body>
 </html>
