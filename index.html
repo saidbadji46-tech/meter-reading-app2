@@ -137,6 +137,26 @@ main{flex:1;overflow-y:auto;}
 .progress-track{height:5px;background:var(--line);border-radius:3px;overflow:hidden;}
 .progress-fill{height:100%;background:var(--success);border-radius:3px;transition:width .4s ease;}
 
+/* ===== ROUTE SUMMARY CARD (ملخص الجولة) ===== */
+.route-summary-card{
+  background:#fff;margin:10px 14px 0;padding:14px;
+  border-radius:12px;border:1px solid var(--line);
+  box-shadow:0 1px 4px rgba(0,0,0,0.05);
+}
+.rs-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.rs-pct{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:900;color:var(--blue);}
+.rs-title{font-size:13.5px;font-weight:800;color:var(--ink);}
+.rs-track{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:12px;}
+.rs-fill{height:100%;background:var(--blue);border-radius:3px;transition:width .4s ease;}
+.rs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.rs-item{background:var(--surface);border-radius:9px;padding:9px 4px;text-align:center;}
+.rs-val{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:800;display:block;color:var(--ink);}
+.rs-lbl{font-size:10.5px;color:var(--muted);font-weight:700;}
+.rs-item.rs-gps .rs-val{color:var(--blue);}
+.rs-item.rs-pending .rs-val{color:var(--muted);}
+.rs-item.rs-done .rs-val{color:var(--success);}
+.rs-item.rs-anom .rs-val{color:var(--warning);}
+
 .meter-row{
   background:var(--card);
   border-bottom:1px solid var(--line);
@@ -383,18 +403,19 @@ main{flex:1;overflow-y:auto;}
 
     <!-- LIST VIEWS -->
     <div id="tab-all" class="view active">
-      <div id="proDashboard" style="margin:10px 14px 4px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.04);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <b style="font-size:14px;">📊 ملخص الجولة</b><span id="dashPct" style="font-weight:800;color:var(--blue);">0%</span>
+      <div class="route-summary-card" id="routeSummaryCard">
+        <div class="rs-top">
+          <span class="rs-pct" id="rsPct">0%</span>
+          <span class="rs-title">📊 ملخص الجولة</span>
         </div>
-        <div style="height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:10px;"><div id="dashFill" style="height:100%;width:0%;background:var(--blue);transition:width .3s;"></div></div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;text-align:center;font-size:11px;">
-          <div><b id="dashDone">0</b><br><span style="color:var(--muted);">مقروء</span></div>
-          <div><b id="dashPending">0</b><br><span style="color:var(--muted);">متبقي</span></div>
-          <div><b id="dashLoc">0</b><br><span style="color:var(--muted);">GPS</span></div>
-          <div><b id="dashCons">0</b><br><span style="color:var(--muted);">م³</span></div>
-          <div><b id="dashPhotos">0</b><br><span style="color:var(--muted);">صور</span></div>
-          <div><b id="dashAlerts">0</b><br><span style="color:var(--muted);">تنبيهات</span></div>
+        <div class="rs-track"><div class="rs-fill" id="rsFill" style="width:0%"></div></div>
+        <div class="rs-grid">
+          <div class="rs-item rs-gps"><span class="rs-val" id="rsGps">0</span><span class="rs-lbl">GPS</span></div>
+          <div class="rs-item rs-pending"><span class="rs-val" id="rsPending">0</span><span class="rs-lbl">متبقي</span></div>
+          <div class="rs-item rs-done"><span class="rs-val" id="rsDone">0</span><span class="rs-lbl">مقروء</span></div>
+          <div class="rs-item rs-anom"><span class="rs-val" id="rsAnom">0</span><span class="rs-lbl">تنبيهات</span></div>
+          <div class="rs-item"><span class="rs-val" id="rsPhotos">0</span><span class="rs-lbl">صور</span></div>
+          <div class="rs-item"><span class="rs-val" id="rsCons">0</span><span class="rs-lbl">م³</span></div>
         </div>
       </div>
       <div class="progress-bar-wrap">
@@ -436,8 +457,9 @@ main{flex:1;overflow-y:auto;}
           <span class="chart-bar-cnt" id="cAnomCnt">0</span>
         </div>
       </div>
-      <div style="padding:0 14px 14px;">
-        <button class="btn-prim" onclick="exportJSON()" style="width:100%;padding:13px;margin-bottom:8px;">تصدير نسخة احتياطية</button><button class="btn-ghost" onclick="generateRoundReport()" style="width:100%;padding:13px;">📄 تقرير نهاية الجولة</button>
+      <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px;">
+        <button class="btn-prim" onclick="viewRouteReport()" style="width:100%;padding:13px;">📄 عرض تقرير الجولة</button>
+        <button class="btn-ghost" onclick="exportJSON()" style="width:100%;padding:13px;">تصدير نسخة احتياطية</button>
       </div>
     </div>
 
@@ -533,11 +555,6 @@ main{flex:1;overflow-y:auto;}
         </div>
       </div>
 
-      <div id="smartMeterInfo" style="margin:0 14px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:12px;line-height:1.8;">
-        <div style="font-weight:800;margin-bottom:4px;">📈 تحليل سريع</div>
-        <div id="consAlert">أدخل القراءة لرؤية التحليل.</div>
-        <button type="button" onclick="showMeterHistory()" style="margin-top:7px;border:1px solid var(--line);background:transparent;border-radius:7px;padding:6px 10px;color:var(--blue);font-weight:700;cursor:pointer;">🕐 تاريخ القراءات</button>
-      </div>
       <div style="height:72px;"></div>
       <div class="save-bar">
         <button class="btn-skip" onclick="skipMeter()">تخطّي</button>
@@ -572,7 +589,6 @@ main{flex:1;overflow-y:auto;}
     <div>مديرية الجزائرية للمياه عين تموشنت</div>
     <div>الوكالة التجارية 1</div>
   </div>
-  <div style="text-align:center;font-size:10px;color:var(--muted);padding:5px 0;">نسخة احترافية v11 • Offline</div>
   <div class="manage-section">
     <div class="manage-card">
       <h3>📋 معلومات الجولة</h3>
@@ -613,6 +629,14 @@ main{flex:1;overflow-y:auto;}
       </p>
       <button class="btn-prim" onclick="exportTXT()" style="width:100%;padding:12px;margin-bottom:8px;">تصدير TXT للجولة</button>
       <button class="btn-ghost" onclick="exportResultsZip()" style="width:100%;padding:12px;">تصدير ZIP للجولة</button>
+    </div>
+    <div class="manage-card">
+      <h3>📄 تقرير الجولة</h3>
+      <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;">
+        تقرير مرحلي بصفحة واحدة (ملخص + جدول كامل بالزبائن)، يمكن عرضه أو طباعته PDF حتى قبل إنهاء الجولة.
+      </p>
+      <button class="btn-prim" onclick="viewRouteReport()" style="width:100%;padding:12px;margin-bottom:8px;">👁️ عرض / طباعة التقرير</button>
+      <button class="btn-ghost" onclick="saveRouteReport()" style="width:100%;padding:12px;">💾 حفظ التقرير (HTML)</button>
     </div>
     <div class="manage-card">
       <h3>💾 نسخة احتياطية كاملة</h3>
@@ -836,15 +860,11 @@ function renderAll(){
     return (m.name||'').toLowerCase().includes(q)
         || (m.meter||'').toLowerCase().includes(q)
         || (m.address||'').toLowerCase().includes(q)
-        || (m.phone||'').toLowerCase().replace(/\s+/g,'').includes(qFlat)
-        || (m.nationalId||'').toLowerCase().replace(/\s+/g,'').includes(qFlat)
         || (m.meterSerial||'').toLowerCase().replace(/\s+/g,'').includes(qFlat);
   };
-  // الإشارات تُحسب بشكل مستقل حتى إذا كانت القراءة محفوظة أيضاً.
-  const hasSignal = m => normalizeAnnotList(m.annot).length > 0 || m.status==='anom';
   const done=meters.filter(m=>m.status==='done'&&matchQ(m));
   const pending=meters.filter(m=>m.status!=='done'&&m.status!=='anom'&&matchQ(m));
-  const anom=meters.filter(m=>hasSignal(m)&&matchQ(m));
+  const anom=meters.filter(m=>m.status==='anom'&&matchQ(m));
   const filtered=meters.filter(matchQ);
 
   const pct = meters.length ? Math.round(done.length/meters.length*100) : 0;
@@ -858,7 +878,34 @@ function renderAll(){
   renderListTo('listPending', pending);
   renderListTo('listAnom', anom);
   renderStats2(done, pending, anom);
-  renderProDashboard();
+  renderRouteSummary(done, pending, anom);
+}
+
+/* ====== ROUTE SUMMARY CARD (ملخص الجولة) ====== */
+function computeRouteSummary(){
+  const total = meters.length;
+  const done = meters.filter(m=>m.status==='done');
+  const anom = meters.filter(m=>m.status==='anom');
+  const pending = meters.filter(m=>m.status!=='done'&&m.status!=='anom');
+  const gps = meters.filter(m=>m.lat && m.lng);
+  const photos = meters.filter(m=>m.hasPhoto);
+  const totalCons = meters.reduce((s,m)=> s + (m.newIndex!=null ? (Number(m.consumption)||0) : 0), 0);
+  const pct = total ? Math.round(done.length/total*100) : 0;
+  return {total, done, anom, pending, gps, photos, totalCons, pct};
+}
+
+function renderRouteSummary(done, pending, anom){
+  const s = computeRouteSummary();
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('rsPct', s.pct+'%');
+  set('rsGps', s.gps.length);
+  set('rsPending', pending ? pending.length : s.pending.length);
+  set('rsDone', done ? done.length : s.done.length);
+  set('rsAnom', anom ? anom.length : s.anom.length);
+  set('rsPhotos', s.photos.length);
+  set('rsCons', s.totalCons.toFixed(2).replace(/\.00$/,''));
+  const fill = document.getElementById('rsFill');
+  if(fill) fill.style.width = s.pct+'%';
 }
 
 function doSearch(){
@@ -918,21 +965,13 @@ function renderStats2(done, pending, anom){
   document.getElementById('sDone').textContent=done.length;
   document.getElementById('sPending').textContent=pending.length;
   document.getElementById('sAnom').textContent=anom.length;
-  const bar=(el,cnt)=>{ const b=document.getElementById(el); if(b) b.style.width=(n?Math.round(cnt/n*100):0)+'%'; };
+  const maxW=100;
+  const bar=(el,cnt)=>{ const b=document.getElementById(el); if(b) b.style.width=(n?Math.round(cnt/n*maxW):0)+'%'; };
   const cnt=(el,v)=>{ const b=document.getElementById(el); if(b) b.textContent=v; };
   bar('cDone',done.length); cnt('cDoneCnt',done.length);
   bar('cPending',pending.length); cnt('cPendingCnt',pending.length);
   bar('cAnom',anom.length); cnt('cAnomCnt',anom.length);
 }
-
-function renderProDashboard(){
-  const rs=getRoundStats();
-  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-  set('dashPct',rs.pct+'%'); set('dashDone',rs.done); set('dashPending',rs.pending); set('dashLoc',rs.gps);
-  set('dashCons',Number(rs.cons.toFixed(2))); set('dashPhotos',rs.photos); set('dashAlerts',rs.signals);
-  const fill=document.getElementById('dashFill'); if(fill) fill.style.width=rs.pct+'%';
-}
-
 
 /* ====== OPEN METER ====== */
 function findNextPendingId(afterId){
@@ -1157,7 +1196,6 @@ async function chooseLowReadingReason(reason){
   const val=pendingLowReading.val;
   if(!m){ closeLowReadingModal(); return; }
   closeLowReadingModal();
-  const oldState = { newIndex:m.newIndex, consumption:m.consumption||0, amount:m.amount||0, annot:m.annot||'', lowReadingReason:m.lowReadingReason||'', obs:m.obs||'', savedAt:m.savedAt||null };
   m.newIndex=val;
   m.consumption=Math.max(0, val-m.prevIndex);
   m.amount=calcADEBill(m.consumption, m.subType);
@@ -1166,8 +1204,6 @@ async function chooseLowReadingReason(reason){
   m.annot=selectedAnnots.length ? selectedAnnots.join('+') : 'INH';
   m.status=selectedAnnots.some(c=>c!=='00') ? 'anom' : 'done';
   m.savedAt=new Date().toISOString();
-  m.history = Array.isArray(m.history) ? m.history : [];
-  if(oldState.savedAt || oldState.newIndex!==null && oldState.newIndex!==undefined){ m.history.push(oldState); if(m.history.length>30) m.history=m.history.slice(-30); }
   await saveMeters();
   renderAll();
   toast(`✅ تم الحفظ بسبب: ${reason}`);
@@ -1179,7 +1215,6 @@ async function saveReleve(){
   const m = meters.find(x=>x.id===currentMeterId);
   if(!m) return;
   const val = parseFloat(document.getElementById('newIndexInput').value);
-  const oldState = { newIndex:m.newIndex, consumption:m.consumption||0, amount:m.amount||0, annot:m.annot||'', lowReadingReason:m.lowReadingReason||'', obs:m.obs||'', savedAt:m.savedAt||null };
   const hasSignal = selectedAnnots.some(c=>c!=='00');
 
   if(!hasSignal){
@@ -1211,8 +1246,6 @@ async function saveReleve(){
   m.annot = selectedAnnots.length ? selectedAnnots.join('+') : 'INH';
   m.status = hasSignal ? 'anom' : 'done';
   m.savedAt = new Date().toISOString();
-  m.history = Array.isArray(m.history) ? m.history : [];
-  if(oldState.savedAt || oldState.newIndex!==null && oldState.newIndex!==undefined){ m.history.push(oldState); if(m.history.length>30) m.history=m.history.slice(-30); }
   await saveMeters();
   renderAll();
   toast('✅ تم الحفظ');
@@ -1803,61 +1836,74 @@ function getRouteExportName(){
 }
 
 async function saveExportToCliente(blob, filename){
-  // حفظ ملفات الجولة بالطريقة الأصلية: TXT وZIP داخل نفس مجلد الجولة.
-  // نحتفظ بنفس handle لمجلد cliente ADE، ثم ننشئ مجلد R3T216/R4T216 تلقائياً.
+  // Android/Chrome does not allow a web page to silently write to the root of
+  // internal storage. The first export therefore asks the user to choose the
+  // actual "cliente ADE" folder (or create it). The handle is remembered so
+  // later exports create R3T216/R4T216 folders automatically without asking.
   try{
     if(window.showDirectoryPicker){
       let cliente = await idbGetRaw('clienteADEHandle');
       if(cliente){
         try{
-          let perm = await cliente.queryPermission?.({mode:'readwrite'});
-          if(perm !== 'granted') perm = await cliente.requestPermission?.({mode:'readwrite'});
-          if(perm !== 'granted') cliente=null;
+          const perm = await cliente.queryPermission?.({mode:'readwrite'});
+          if(perm !== 'granted') await cliente.requestPermission?.({mode:'readwrite'});
+          if((await cliente.queryPermission?.({mode:'readwrite'})) !== 'granted') cliente=null;
         }catch(e){ cliente=null; }
       }
       if(!cliente){
-        toast('اختر مجلد cliente ADE مرة واحدة فقط لحفظ ملفات الجولة');
+        toast('اختر أو أنشئ مجلد cliente ADE داخل التخزين الداخلي مرة واحدة فقط');
         cliente = await window.showDirectoryPicker({mode:'readwrite', startIn:'documents'});
+        // User should select the folder named cliente ADE itself.
         await idbSetRaw('clienteADEHandle', cliente);
       }
-      const roundDirName = getRouteExportName();
+      const roundDirName = filename.replace(/\.(txt|zip)$/i,'');
       const roundDir = await cliente.getDirectoryHandle(roundDirName,{create:true});
       const fh = await roundDir.getFileHandle(filename,{create:true});
       const writable = await fh.createWritable();
-      // ArrayBuffer أكثر ثباتاً مع Chrome/Android عند كتابة ZIP المولّد بـ JSZip.
-      if(blob && typeof blob.arrayBuffer === 'function'){
-        await writable.write(await blob.arrayBuffer());
-      }else{
-        await writable.write(blob);
-      }
-      await writable.close();
+      await writable.write(blob); await writable.close();
       toast(`✅ تم حفظ ${filename} داخل cliente ADE/${roundDirName}`);
       return true;
     }
   }catch(err){
-    console.error('saveExportToCliente:',err);
     if(err && err.name === 'AbortError'){ toast('تم إلغاء اختيار مجلد cliente ADE'); return false; }
-    toast('تعذر الحفظ المباشر، سيتم تنزيل الملف الآن.');
+    console.error(err);
+    toast('تعذر الحفظ المباشر. سيتم تنزيل الملف بالطريقة العادية.');
   }
   const url=URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000); return true;
+  setTimeout(()=>URL.revokeObjectURL(url),1000); toast(`✅ تم تنزيل ${filename}`); return true;
 }
 
-function getRoundStats(){
-  const hasSignal=m=>normalizeAnnotList(m.annot).length>0 || m.status==='anom';
-  const total=meters.length;
-  const done=meters.filter(m=>m.status==='done').length;
-  const signals=meters.filter(hasSignal).length;
-  // الإشارات مستقلة عن القراءة: إذا كان الزبون مقروءاً وله إشارة فهو يدخل في done وsignals،
-  // أما المتبقي فهو فقط من لا يملك قراءة ولا إشارة.
-  const pending=meters.filter(m=>m.status!=='done' && !hasSignal(m)).length;
-  const anomalous=meters.filter(m=>m.status==='anom').length;
-  const gps=meters.filter(m=>m.lat!=null&&m.lng!=null&&m.lat!==''&&m.lng!=='').length;
-  const photos=meters.filter(m=>m.hasPhoto).length;
-  const cons=meters.reduce((s,m)=>s+(Number(m.consumption)||0),0);
-  const pct=total?Math.round(done/total*100):0;
-  return {total,done,pending,signals,anomalous,gps,photos,cons,pct,hasSignal};
+/* ====== تقرير الجولة (HTML) ====== */
+function buildRouteReportHTML(){
+  const s = computeRouteSummary();
+  const routeName = getRouteExportName();
+  const consDisp = s.totalCons.toFixed(2);
+  const rows = meters.map(m=>{
+    const reading = m.newIndex!=null ? escH(String(m.newIndex)) : '—';
+    const cons = m.newIndex!=null ? escH(String(m.consumption||0)) : '0';
+    const annotDisp = m.annot ? escH(String(m.annot).split('+').join(' + ')) : '—';
+    const statusDisp = m.status==='done' ? 'مرفوعة' : (m.status==='anom' ? 'إشارة' : 'متبقي');
+    return `<tr><td>${escH(m.meter)}</td><td>${escH(m.name)}</td><td>${reading}</td><td>${cons}</td><td>${annotDisp}</td><td>${statusDisp}</td></tr>`;
+  }).join('');
+
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير ${escH(routeName)}</title><style>body{font-family:Arial,sans-serif;margin:20px;color:#222}h1{font-size:22px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.card{padding:12px;border:1px solid #ddd;border-radius:10px;text-align:center}.v{font-size:22px;font-weight:800;display:block}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #ddd;padding:7px;font-size:12px}th{background:#eee}@media print{button{display:none}}@media(max-width:700px){.cards{grid-template-columns:repeat(2,1fr)}}</style></head><body><h1>📄 تقرير الجولة ${escH(routeName)}</h1><p>تقرير مرحلي — يمكن إنشاؤه حتى قبل إنهاء الجولة.</p><div class="cards"><div class="card"><span class="v">${s.total}</span>الإجمالي</div><div class="card"><span class="v">${s.done.length}</span>مرفوعة</div><div class="card"><span class="v">${s.pending.length}</span>معلّقة</div><div class="card"><span class="v">${s.anom.length}</span>إشارات</div><div class="card"><span class="v">${s.gps.length}</span>GPS</div><div class="card"><span class="v">${s.photos.length}</span>صور</div><div class="card"><span class="v">${consDisp}</span>م³</div><div class="card"><span class="v">${s.pct}%</span>نسبة الإنجاز</div></div><button onclick="window.print()">🖨️ طباعة / PDF</button><table><thead><tr><th>رمز الزبون</th><th>الاسم</th><th>القراءة</th><th>الاستهلاك</th><th>الإشارات</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+}
+
+async function viewRouteReport(){
+  if(!meters.length){ toast('لا توجد بيانات لعرض التقرير'); return; }
+  const html = buildRouteReportHTML();
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
+}
+
+async function saveRouteReport(){
+  if(!meters.length){ toast('لا توجد بيانات لحفظ التقرير'); return; }
+  const html = buildRouteReportHTML();
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  await saveExportToCliente(blob, `${getRouteExportName()}_تقرير.html`);
 }
 
 async function exportTXT(){
@@ -1988,15 +2034,6 @@ async function exportResultsZip(){
 </table>
 </body></html>`;
   zip.file('المواقع.html', locHtml);
-  // تقرير الجولة داخل ZIP — بنفس أرقام ملخص التطبيق، حتى قبل إنهاء الجولة.
-  const rs = getRoundStats();
-  const reportRows = meters.map(m=>{
-    const sig=normalizeAnnotList(m.annot);
-    const status = m.status==='done' && sig.length ? 'مقروء + إشارة' : m.status==='done' ? 'مقروء' : sig.length ? 'إشارة' : 'متبقي';
-    return `<tr><td>${escH(m.meter)}</td><td>${escH(m.name)}</td><td>${m.newIndex!=null?escH(String(m.newIndex)):'—'}</td><td>${Number(m.consumption)||0}</td><td>${escH(sig.join(' + ')||'—')}</td><td>${status}</td></tr>`;
-  }).join('');
-  const reportHtml = `<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير ${escH(getRouteExportName())}</title><style>body{font-family:Arial;padding:20px;color:#222}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:15px 0}.card{padding:12px;border:1px solid #ddd;border-radius:10px;text-align:center}.v{font-size:22px;font-weight:800;display:block}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:7px;font-size:12px}th{background:#eee}@media(max-width:700px){.cards{grid-template-columns:repeat(2,1fr)}}</style><h2>📄 تقرير الجولة ${escH(getRouteExportName())}</h2><p>تقرير مرحلي ويمكن إنشاؤه قبل إنهاء الجولة.</p><div class="cards"><div class="card"><span class="v">${rs.total}</span>إجمالي العدادات</div><div class="card"><span class="v">${rs.done}</span>مرفوعة</div><div class="card"><span class="v">${rs.pending}</span>معلّقة</div><div class="card"><span class="v">${rs.signals}</span>إشارات</div><div class="card"><span class="v">${rs.gps}</span>مواقع GPS</div><div class="card"><span class="v">${rs.photos}</span>صور</div><div class="card"><span class="v">${rs.cons.toFixed(2)}</span>م³ استهلاك</div><div class="card"><span class="v">${rs.pct}%</span>نسبة الإنجاز</div></div><table><tr><th>رمز الزبون</th><th>الاسم</th><th>القراءة</th><th>الاستهلاك</th><th>الإشارات</th><th>الحالة</th></tr>${reportRows}</table></html>`;
-  zip.file(`${getRouteExportName()}_تقرير.html`, reportHtml);
 
   const blob = await zip.generateAsync({type:'blob'});
   await saveExportToCliente(blob, `${getRouteExportName()}.zip`);
@@ -2024,18 +2061,6 @@ async function confirmClear(){
   meters=[]; await saveMeters(); renderAll(); toast('تم المسح');
 }
 
-async function generateRoundReport(){
-  if(!meters.length){ toast('لا توجد بيانات للجولة'); return; }
-  const rs=getRoundStats();
-  const rows=meters.map(m=>{
-    const sig=normalizeAnnotList(m.annot);
-    const status=m.status==='done'&&sig.length?'مقروء + إشارة':m.status==='done'?'مقروء':sig.length?'إشارة':'متبقي';
-    return `<tr><td>${escH(m.meter)}</td><td>${escH(m.name)}</td><td>${m.newIndex!=null?escH(String(m.newIndex)):'—'}</td><td>${Number(m.consumption)||0}</td><td>${escH(sig.join(' + ')||'—')}</td><td>${status}</td></tr>`;
-  }).join('');
-  const html=`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير ${escH(getRouteExportName())}</title><style>body{font-family:Arial,sans-serif;margin:20px;color:#222}h1{font-size:22px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.card{padding:12px;border:1px solid #ddd;border-radius:10px;text-align:center}.v{font-size:22px;font-weight:800;display:block}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #ddd;padding:7px;font-size:12px}th{background:#eee}@media print{button{display:none}}@media(max-width:700px){.cards{grid-template-columns:repeat(2,1fr)}}</style></head><body><h1>📄 تقرير الجولة ${escH(getRouteExportName())}</h1><p>تقرير مرحلي — يمكن إنشاؤه حتى قبل إنهاء الجولة.</p><div class="cards"><div class="card"><span class="v">${rs.total}</span>الإجمالي</div><div class="card"><span class="v">${rs.done}</span>مرفوعة</div><div class="card"><span class="v">${rs.pending}</span>معلّقة</div><div class="card"><span class="v">${rs.signals}</span>إشارات</div><div class="card"><span class="v">${rs.gps}</span>GPS</div><div class="card"><span class="v">${rs.photos}</span>صور</div><div class="card"><span class="v">${rs.cons.toFixed(2)}</span>م³</div><div class="card"><span class="v">${rs.pct}%</span>نسبة الإنجاز</div></div><button onclick="window.print()">🖨️ طباعة / PDF</button><table><thead><tr><th>رمز الزبون</th><th>الاسم</th><th>القراءة</th><th>الاستهلاك</th><th>الإشارات</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
-  await saveExportToCliente(new Blob([html],{type:'text/html;charset=utf-8'}),`${getRouteExportName()}_تقرير.html`);
-}
-
 /* ====== CLOSE MODAL ON OUTSIDE CLICK ====== */
 document.getElementById('addModal').addEventListener('click',e=>{ if(e.target.id==='addModal') closeAddModal(); });
 
@@ -2053,7 +2078,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=professional-12').then(reg => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
