@@ -13,9 +13,8 @@
 <link rel="apple-touch-icon" href="https://saidbadji46-tech.github.io/meter-reading-app2/icon-192x192.png">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="vendor/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="vendor/jszip.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
 <style>
 :root{
   --blue:#1565C0;
@@ -825,34 +824,58 @@ async function safeSet(k,v){ try{ await idbSetRaw(k,v); return true; }catch(e){ 
 async function safeDelete(k){ try{ await idbDeleteRaw(k); }catch(e){} }
 
 async function loadData(){
-  const m = await sg('meters'); meters = m ? JSON.parse(m) : [];
-  // Restore serials previously extracted during import, even for customers
-  // that already existed before the import.
+  // Render the interface immediately. Do not make the whole application wait for IndexedDB.
+  // This is important on Android/PWA when storage is slow or temporarily unavailable.
   try{
-    const sm = await sg('serialByMeter');
+    document.getElementById('mRouteNum').value = settings.routeNum;
+    document.getElementById('mTriplet').value = String(settings.triplet||'1');
+    document.getElementById('mWorkerName').value = settings.worker||'';
+    document.getElementById('mPrice').value = settings.price;
+    document.getElementById('mCurrency').value = settings.currency;
+    document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
+    document.getElementById('topBadge').textContent = settings.routeNum;
+    renderAll();
+  }catch(e){ console.error('initial render failed',e); }
+  const splash=document.getElementById('splash');
+  if(splash){ splash.style.opacity='0'; setTimeout(()=>splash.remove(),450); }
+
+  // Load saved data in the background, with a safety timeout so the UI never gets stuck.
+  const timeout = (promise, ms=3500) => Promise.race([promise, new Promise((_,reject)=>setTimeout(()=>reject(new Error('storage timeout')),ms))]);
+  try{
+    const m = await timeout(sg('meters')); 
+    if(m){ try{ meters = Array.isArray(m) ? m : JSON.parse(m); }catch(e){ meters=[]; console.warn('meters data invalid',e); } }
+  }catch(e){ console.warn('meters load skipped',e); }
+  try{
+    const sm = await timeout(sg('serialByMeter'));
     if(sm){
-      const map = JSON.parse(sm) || {};
-      let changed = false;
-      meters.forEach(x=>{
-        const key = String(x.meter||'').trim().toUpperCase();
-        if(key && !x.meterSerial && map[key]){ x.meterSerial = String(map[key]); changed = true; }
-      });
-      if(changed) await saveMeters();
+      try{
+        const map = Array.isArray(sm) ? sm : (JSON.parse(sm)||{});
+        let changed=false;
+        meters.forEach(x=>{ const key=String(x.meter||'').trim().toUpperCase(); if(key && !x.meterSerial && map[key]){x.meterSerial=String(map[key]);changed=true;} });
+        if(changed) await saveMeters();
+      }catch(e){ console.warn('serial map skipped',e); }
     }
-  }catch(e){}
-  const s = await sg('settings'); if(s){ settings=Object.assign(settings, JSON.parse(s)); }
-  try{ const a=await sg('roundArchives'); roundArchives=a?JSON.parse(a):[]; }catch(e){ roundArchives=[]; }
-  if(settings.darkMode) document.body.classList.add('dark');
+  }catch(e){ console.warn('serial storage skipped',e); }
+  try{
+    const sv = await timeout(sg('settings'));
+    if(sv){ try{ settings=Object.assign(settings, Array.isArray(sv)?{}:JSON.parse(sv)); }catch(e){ console.warn('settings invalid',e); } }
+  }catch(e){ console.warn('settings load skipped',e); }
+  try{
+    const av = await timeout(sg('roundArchives'));
+    if(av){ try{ roundArchives=Array.isArray(av)?av:(JSON.parse(av)||[]); }catch(e){ roundArchives=[]; } }
+  }catch(e){ roundArchives=[]; }
   currentRoundCreatedAt = settings.currentRoundCreatedAt || Date.now();
-  document.getElementById('mRouteNum').value = settings.routeNum;
-  document.getElementById('mTriplet').value = String(settings.triplet||'1');
-  document.getElementById('mWorkerName').value = settings.worker||'';
-  document.getElementById('mPrice').value = settings.price;
-  document.getElementById('mCurrency').value = settings.currency;
-  document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
-  document.getElementById('topBadge').textContent = settings.routeNum;
-  renderAll();
-  setTimeout(()=>{const sp=document.getElementById('splash');if(sp){sp.style.opacity='0';setTimeout(()=>sp.remove(),400);}},700);
+  try{
+    document.getElementById('mRouteNum').value = settings.routeNum;
+    document.getElementById('mTriplet').value = String(settings.triplet||'1');
+    document.getElementById('mWorkerName').value = settings.worker||'';
+    document.getElementById('mPrice').value = settings.price;
+    document.getElementById('mCurrency').value = settings.currency;
+    document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
+    document.getElementById('topBadge').textContent = settings.routeNum;
+    if(settings.darkMode) document.body.classList.add('dark');
+    renderAll();
+  }catch(e){ console.error('post-load render failed',e); }
   setTimeout(showPinOverlay,750);
 }
 async function saveMeters(){ await ss('meters', JSON.stringify(meters)); }
@@ -1227,6 +1250,12 @@ function setupPin(){pinBuffer='';pinMode='setup1';document.getElementById('pinMs
 async function disablePin(){if(!settings.pinHash){toast('PIN غير مفعّل');return;}if(confirm('إلغاء قفل PIN؟')){delete settings.pinHash;await saveSettings3();toast('🔓 تم إلغاء PIN');}}
 
 /* ====== INIT ====== */
+window.addEventListener('error', e=>{
+  console.error('ADE app error', e.error || e.message);
+  const splash=document.getElementById('splash');
+  if(splash){ splash.style.opacity='0'; setTimeout(()=>splash.remove(),300); }
+});
+window.addEventListener('unhandledrejection', e=>console.error('ADE app rejection', e.reason));
 loadData();
 </script>
 
