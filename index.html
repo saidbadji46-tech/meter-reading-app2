@@ -1822,6 +1822,24 @@ async function commitImport(records, statusEl, input, routeNum=''){
   if(input) input.value = '';
 }
 
+async function prepareForNewADEImport(detectedRoute=''){
+  const newRoute = String(detectedRoute||'').replace(/^R\d+T?/i,'').replace(/^T/i,'').replace(/^CH/i,'').trim();
+  if(!meters.length) return true;
+  const currentRoute = String(settings.routeNum||'').replace(/^R\d+T?/i,'').replace(/^T/i,'').replace(/^CH/i,'').trim();
+  // Importing a different ADE route means starting a new round. Preserve the
+  // current round in the archive, then clear only the active round's meters.
+  if(newRoute && currentRoute && newRoute !== currentRoute){
+    await archiveCurrentRound(true);
+    meters = [];
+    currentRoundCreatedAt = Date.now();
+    settings.currentRoundCreatedAt = currentRoundCreatedAt;
+    await saveMeters();
+    await saveSettings3();
+    return true;
+  }
+  return true;
+}
+
 function importSubscribersFile(input){
   const file = input.files[0];
   if(!file) return;
@@ -1840,10 +1858,16 @@ function importSubscribersFile(input){
         const detectedTriplet = detectTripletFromADE(file.name, rawLines);
         if(adeRecords){
           if(detectedTriplet){ settings.triplet=detectedTriplet; document.getElementById('mTriplet').value=detectedTriplet; await saveSettings3(); }
+          // If this ADE file belongs to a different route, archive the current
+          // round first and start a fresh active round. This prevents the new
+          // import from being skipped because the same meter numbers already
+          // exist in the previous round.
+          await prepareForNewADEImport(detectedRoute);
           if(detectedRoute){
             settings.routeNum = detectedRoute;
             document.getElementById('mRouteNum').value = detectedRoute;
             document.getElementById('topBadge').textContent = detectedRoute;
+            settings.currentRoundCreatedAt = currentRoundCreatedAt || Date.now();
             await saveSettings3();
           }
           statusEl.textContent = detectedRoute ? `تم التعرّف على تنسيق جولة ADE — الجولة ${detectedRoute}` : 'تم التعرّف على تنسيق جولة ADE...';
@@ -2007,15 +2031,17 @@ async function exportTXT(){
 /* ====== ROUTE REPORT ====== */
 function getRouteStats(){
   const total = meters.length;
+  const hasSignal = m => normalizeAnnotList(m.annot).length>0 || m.status==='anom';
   const done = meters.filter(m=>m.status==='done').length;
   const anom = meters.filter(m=>m.status==='anom').length;
-  const pending = total - done - anom;
-  const gps = meters.filter(m=>m.lat && m.lng).length;
+  const signals = meters.filter(hasSignal).length;
+  const pending = meters.filter(m=>m.status!=='done' && !hasSignal(m)).length;
+  const gps = meters.filter(m=>m.lat!=null && m.lng!=null && m.lat!=='' && m.lng!=='').length;
   const photos = meters.filter(m=>m.hasPhoto).length;
   const consumption = meters.reduce((sum,m)=>sum + (m.status==='done' ? (Number(m.consumption)||0) : 0), 0);
   const amount = meters.reduce((sum,m)=>sum + (m.status==='done' ? (Number(m.amount)||0) : 0), 0);
   const progress = total ? Math.round(done/total*100) : 0;
-  return {total,done,pending,anom,gps,photos,consumption,amount,progress};
+  return {total,done,pending,anom,signals,gps,photos,consumption,amount,progress};
 }
 function buildRouteReportHtml(){
   const st = getRouteStats();
@@ -2024,13 +2050,13 @@ function buildRouteReportHtml(){
   const currency = escH(settings.currency||'دج');
   const date = new Date().toLocaleString('ar-DZ');
   const rows = meters.map((m,i)=>{
-    const status = m.status==='done'?'مرفوعة':(m.status==='anom'?'إشارة':'معلّقة');
+    const hasSig=normalizeAnnotList(m.annot).length>0 || m.status==='anom'; const status = m.status==='done' ? (hasSig?'مرفوعة + إشارة':'مرفوعة') : (hasSig?'إشارة':'معلّقة');
     const map = (m.lat&&m.lng) ? `<a href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank">📍 فتح</a>` : '—';
     const sig=m.signatureData?'✍️ نعم':'—'; return `<tr><td>${i+1}</td><td>${escH(m.meter)}</td><td>${escH(m.name)}</td><td>${escH(m.meterSerial||'—')}</td><td>${escH(m.address||'—')}</td><td>${m.newIndex!=null?escH(m.newIndex):'—'}</td><td>${m.status==='done'?escH(m.consumption):'—'}</td><td>${escH(status)}</td><td>${map}</td><td>${sig}</td></tr>`;
   }).join('');
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير الجولة ${route}</title><style>
 @page{size:A4;margin:12mm}body{font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#222;margin:0;padding:16px}.report{max-width:1100px;margin:auto;background:#fff;padding:22px;border-radius:12px;box-shadow:0 2px 12px #0001}h1{margin:0 0 5px;color:#1565c0;font-size:25px}h2{font-size:17px;margin:22px 0 10px;color:#1565c0}.meta{color:#666;font-size:12px;line-height:1.8}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:16px}.card{border:1px solid #ddd;border-radius:9px;padding:12px;text-align:center}.num{font-size:22px;font-weight:800;color:#1565c0}.lbl{font-size:11px;color:#666;margin-top:4px}.bar{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin-top:12px}.bar>span{display:block;height:100%;background:#1565c0;width:${st.progress}%}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#1565c0;color:white;padding:8px}td{padding:7px;border-bottom:1px solid #eee;text-align:right}a{color:#1565c0;font-weight:bold;text-decoration:none}.actions{position:sticky;top:0;background:#fff;padding-bottom:10px;display:flex;gap:8px}.actions button{border:0;border-radius:8px;padding:10px 14px;background:#1565c0;color:#fff;font-weight:bold}@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}table{font-size:9px}.report{padding:12px}}@media print{body{background:#fff;padding:0}.report{box-shadow:none;padding:0}.actions{display:none}.card{break-inside:avoid}}
-</style></head><body><div class="report"><div class="actions"><button onclick="window.print()">🖨️ طباعة</button><button onclick="window.close()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(m.status==='done'?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(m=>m.status==='done').sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div></body></html>`;
+</style></head><body><div class="report"><div class="actions"><button onclick="window.print()">🖨️ طباعة</button><button onclick="window.close()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.signals}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(m.status==='done'?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(m=>m.status==='done').sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div></body></html>`;
 }
 function openRouteReport(){
   if(!meters.length){ toast('لا توجد بيانات لإنشاء التقرير'); return; }
