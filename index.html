@@ -915,7 +915,7 @@ function goBack(){
 }
 
 /* ====== RENDER LIST ====== */
-function escH(s){ return (s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+function escH(s){ return String(s??'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function renderAll(){
   const q=(document.getElementById('searchBox')||{value:''}).value.toLowerCase();
@@ -2061,7 +2061,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=20');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=21');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -2127,7 +2127,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=20').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=21').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
