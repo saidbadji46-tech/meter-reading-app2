@@ -840,9 +840,11 @@ function renderAll(){
         || (m.nationalId||'').toLowerCase().replace(/\s+/g,'').includes(qFlat)
         || (m.meterSerial||'').toLowerCase().replace(/\s+/g,'').includes(qFlat);
   };
+  // الإشارات تُحسب بشكل مستقل حتى إذا كانت القراءة محفوظة أيضاً.
+  const hasSignal = m => normalizeAnnotList(m.annot).length > 0 || m.status==='anom';
   const done=meters.filter(m=>m.status==='done'&&matchQ(m));
   const pending=meters.filter(m=>m.status!=='done'&&m.status!=='anom'&&matchQ(m));
-  const anom=meters.filter(m=>m.status==='anom'&&matchQ(m));
+  const anom=meters.filter(m=>hasSignal(m)&&matchQ(m));
   const filtered=meters.filter(matchQ);
 
   const pct = meters.length ? Math.round(done.length/meters.length*100) : 0;
@@ -856,6 +858,7 @@ function renderAll(){
   renderListTo('listPending', pending);
   renderListTo('listAnom', anom);
   renderStats2(done, pending, anom);
+  renderProDashboard();
 }
 
 function doSearch(){
@@ -915,13 +918,29 @@ function renderStats2(done, pending, anom){
   document.getElementById('sDone').textContent=done.length;
   document.getElementById('sPending').textContent=pending.length;
   document.getElementById('sAnom').textContent=anom.length;
-  const maxW=100;
-  const bar=(el,cnt)=>{ const b=document.getElementById(el); if(b) b.style.width=(n?Math.round(cnt/n*maxW):0)+'%'; };
+  const bar=(el,cnt)=>{ const b=document.getElementById(el); if(b) b.style.width=(n?Math.round(cnt/n*100):0)+'%'; };
   const cnt=(el,v)=>{ const b=document.getElementById(el); if(b) b.textContent=v; };
   bar('cDone',done.length); cnt('cDoneCnt',done.length);
   bar('cPending',pending.length); cnt('cPendingCnt',pending.length);
   bar('cAnom',anom.length); cnt('cAnomCnt',anom.length);
 }
+
+function renderProDashboard(){
+  const total=meters.length;
+  const hasSignal=m=>normalizeAnnotList(m.annot).length>0 || m.status==='anom';
+  const done=meters.filter(m=>m.status==='done').length;
+  const pending=meters.filter(m=>m.status!=='done' && !hasSignal(m)).length;
+  const signals=meters.filter(hasSignal).length;
+  const locations=meters.filter(m=>m.lat!=null && m.lng!=null && m.lat!=='' && m.lng!=='').length;
+  const photos=meters.filter(m=>m.hasPhoto).length;
+  const consumption=meters.reduce((sum,m)=>sum+(Number(m.consumption)||0),0);
+  const pct=total?Math.round(done/total*100):0;
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('dashPct',pct+'%'); set('dashDone',done); set('dashPending',pending); set('dashLoc',locations);
+  set('dashCons',Number(consumption.toFixed(2))); set('dashPhotos',photos); set('dashAlerts',signals);
+  const fill=document.getElementById('dashFill'); if(fill) fill.style.width=pct+'%';
+}
+
 
 /* ====== OPEN METER ====== */
 function findNextPendingId(afterId){
@@ -1792,27 +1811,23 @@ function getRouteExportName(){
 }
 
 async function saveExportToCliente(blob, filename){
-  // Android/Chrome does not allow a web page to silently write to the root of
-  // internal storage. The first export therefore asks the user to choose the
-  // actual "cliente ADE" folder (or create it). The handle is remembered so
-  // later exports create R3T216/R4T216 folders automatically without asking.
+  // جميع ملفات الجولة (TXT وZIP والتقرير) تُحفظ في نفس مجلد الجولة داخل cliente ADE.
   try{
     if(window.showDirectoryPicker){
       let cliente = await idbGetRaw('clienteADEHandle');
       if(cliente){
         try{
-          const perm = await cliente.queryPermission?.({mode:'readwrite'});
-          if(perm !== 'granted') await cliente.requestPermission?.({mode:'readwrite'});
-          if((await cliente.queryPermission?.({mode:'readwrite'})) !== 'granted') cliente=null;
+          let perm = await cliente.queryPermission?.({mode:'readwrite'});
+          if(perm !== 'granted') perm = await cliente.requestPermission?.({mode:'readwrite'});
+          if(perm !== 'granted') cliente=null;
         }catch(e){ cliente=null; }
       }
       if(!cliente){
-        toast('اختر أو أنشئ مجلد cliente ADE داخل التخزين الداخلي مرة واحدة فقط');
+        toast('اختر مجلد cliente ADE مرة واحدة فقط لحفظ TXT وZIP والتقرير');
         cliente = await window.showDirectoryPicker({mode:'readwrite', startIn:'documents'});
-        // User should select the folder named cliente ADE itself.
         await idbSetRaw('clienteADEHandle', cliente);
       }
-      const roundDirName = filename.replace(/\.(txt|zip)$/i,'');
+      const roundDirName = getRouteExportName();
       const roundDir = await cliente.getDirectoryHandle(roundDirName,{create:true});
       const fh = await roundDir.getFileHandle(filename,{create:true});
       const writable = await fh.createWritable();
@@ -1822,12 +1837,12 @@ async function saveExportToCliente(blob, filename){
     }
   }catch(err){
     if(err && err.name === 'AbortError'){ toast('تم إلغاء اختيار مجلد cliente ADE'); return false; }
-    console.error(err);
-    toast('تعذر الحفظ المباشر. سيتم تنزيل الملف بالطريقة العادية.');
+    console.error('saveExportToCliente:',err);
+    toast('تعذر الحفظ المباشر، سيتم تنزيل الملف الآن.');
   }
   const url=URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000); toast(`✅ تم تنزيل ${filename}`); return true;
+  setTimeout(()=>URL.revokeObjectURL(url),1000); return true;
 }
 
 async function exportTXT(){
@@ -1958,6 +1973,10 @@ async function exportResultsZip(){
 </table>
 </body></html>`;
   zip.file('المواقع.html', locHtml);
+  // تقرير الجولة داخل ZIP، ويُنشأ حتى لو لم تكتمل الجولة.
+  const reportRows = meters.map(m=>`<tr><td>${escH(m.meter)}</td><td>${escH(m.name)}</td><td>${m.newIndex!=null?escH(String(m.newIndex)):'—'}</td><td>${Number(m.consumption)||0}</td><td>${escH(m.annot||'—')}</td></tr>`).join('');
+  const reportHtml = `<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>تقرير ${escH(getRouteExportName())}</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:7px}</style><h2>📄 تقرير الجولة ${escH(getRouteExportName())}</h2><p>يمكن فتح هذا التقرير حتى قبل إنهاء الجولة.</p><table><tr><th>رمز الزبون</th><th>الاسم</th><th>القراءة</th><th>الاستهلاك</th><th>الإشارات</th></tr>${reportRows}</table></html>`;
+  zip.file(`${getRouteExportName()}_تقرير.html`, reportHtml);
 
   const blob = await zip.generateAsync({type:'blob'});
   await saveExportToCliente(blob, `${getRouteExportName()}.zip`);
@@ -1985,6 +2004,20 @@ async function confirmClear(){
   meters=[]; await saveMeters(); renderAll(); toast('تم المسح');
 }
 
+async function generateRoundReport(){
+  if(!meters.length){ toast('لا توجد بيانات للجولة'); return; }
+  const hasSignal=m=>normalizeAnnotList(m.annot).length>0 || m.status==='anom';
+  const done=meters.filter(m=>m.status==='done').length;
+  const signals=meters.filter(hasSignal).length;
+  const pending=meters.length-done;
+  const gps=meters.filter(m=>m.lat!=null&&m.lng!=null&&m.lat!==''&&m.lng!=='').length;
+  const photos=meters.filter(m=>m.hasPhoto).length;
+  const cons=meters.reduce((s,m)=>s+(Number(m.consumption)||0),0);
+  const rows=meters.map(m=>`<tr><td>${escH(m.meter)}</td><td>${escH(m.name)}</td><td>${m.newIndex!=null?escH(String(m.newIndex)):'—'}</td><td>${Number(m.consumption)||0}</td><td>${escH(m.annot||'—')}</td><td>${m.status==='done'?'مقروء':(hasSignal(m)?'إشارة':'متبقي')}</td></tr>`).join('');
+  const html=`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير ${escH(getRouteExportName())}</title><style>body{font-family:Arial,sans-serif;margin:20px;color:#222}h1{font-size:22px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.card{padding:12px;border:1px solid #ddd;border-radius:10px;text-align:center}.v{font-size:22px;font-weight:800;display:block}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #ddd;padding:7px;font-size:12px}th{background:#eee}@media print{button{display:none}}</style></head><body><h1>📄 تقرير الجولة ${escH(getRouteExportName())}</h1><p>تقرير مرحلي — يمكن إنشاؤه حتى قبل إنهاء الجولة.</p><div class="cards"><div class="card"><span class="v">${meters.length}</span>الإجمالي</div><div class="card"><span class="v">${done}</span>مقروء</div><div class="card"><span class="v">${signals}</span>إشارات</div><div class="card"><span class="v">${pending}</span>متبقي</div><div class="card"><span class="v">${gps}</span>GPS</div><div class="card"><span class="v">${photos}</span>صور</div><div class="card"><span class="v">${cons.toFixed(2)}</span>م³</div></div><button onclick="window.print()">🖨️ طباعة / PDF</button><table><thead><tr><th>رمز الزبون</th><th>الاسم</th><th>القراءة</th><th>الاستهلاك</th><th>الإشارات</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  await saveExportToCliente(new Blob([html],{type:'text/html;charset=utf-8'}),`${getRouteExportName()}_تقرير.html`);
+}
+
 /* ====== CLOSE MODAL ON OUTSIDE CLICK ====== */
 document.getElementById('addModal').addEventListener('click',e=>{ if(e.target.id==='addModal') closeAddModal(); });
 
@@ -2002,7 +2035,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=professional-11').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=professional-12').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
