@@ -45,7 +45,7 @@ body{font-family:'Tajawal',sans-serif;background:var(--surface);color:var(--ink)
   gap:10px;
   position:sticky;
   top:0;
-  z-index:30;
+  z-index:2100;
   box-shadow:0 2px 8px rgba(0,0,0,0.2);
 }
 .top-bar .back-ico{
@@ -316,6 +316,11 @@ body.dark .route-map-canvas{background:#243447;}
   padding:14px;margin-bottom:10px;
 }
 .manage-card h3{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.manage-card h3.mc-toggle{cursor:pointer;justify-content:space-between;margin-bottom:0;padding-bottom:10px;}
+.manage-card h3.mc-toggle .mc-title{display:flex;align-items:center;gap:6px;}
+.manage-card h3.mc-toggle .mc-arrow{font-size:11px;color:var(--muted);transition:transform .15s;}
+.mc-body{overflow:hidden;max-height:0;transition:max-height .2s ease;}
+.mc-body.open{max-height:2000px;padding-top:10px;}
 
 /* ===== FAB ===== */
 .fab{
@@ -334,14 +339,14 @@ body.dark .route-map-canvas{background:#243447;}
   position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);
   background:#212121;color:#fff;padding:10px 18px;border-radius:24px;
   font-size:13px;font-weight:600;opacity:0;pointer-events:none;
-  transition:all .22s ease;z-index:99;white-space:nowrap;
+  transition:all .22s ease;z-index:3100;white-space:nowrap;
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
 /* ===== MODAL ===== */
 .overlay{
   position:fixed;inset:0;background:rgba(0,0,0,0.45);
-  display:none;align-items:flex-end;justify-content:center;z-index:60;
+  display:none;align-items:flex-end;justify-content:center;z-index:2500;
 }
 .overlay.show{display:flex;}
 .sheet{
@@ -374,7 +379,7 @@ body.dark .route-map-canvas{background:#243447;}
   position:fixed;bottom:0;width:100%;max-width:480px;
   background:#fff;border-top:1px solid var(--line);
   display:flex;padding:6px 0 calc(6px + env(safe-area-inset-bottom));
-  z-index:28;
+  z-index:2100;
 }
 .nav-btn{
   flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;
@@ -406,10 +411,10 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
 .alert-pill{font-size:10px;border-radius:20px;padding:3px 7px;background:#FFF3E0;color:var(--warning);font-weight:800}
 .archive-card{margin:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px;box-shadow:var(--shadow)}
 .archive-actions{display:flex;gap:7px;margin-top:9px}.archive-actions button{flex:1}
-#splash{position:fixed;inset:0;background:linear-gradient(145deg,var(--blue-dark),var(--blue));color:#fff;display:flex;align-items:center;justify-content:center;z-index:200;transition:opacity .35s ease}.splash-box{text-align:center}.splash-logo{width:82px;height:82px;border-radius:24px;background:#fff1;display:flex;align-items:center;justify-content:center;font-size:42px;margin:auto;box-shadow:0 10px 30px #0003}.splash-title{font-size:23px;font-weight:900;margin-top:14px}.splash-sub{font-size:12px;opacity:.8;margin-top:5px}.splash-loader{width:150px;height:4px;background:#ffffff33;border-radius:5px;overflow:hidden;margin:22px auto 0}.splash-loader span{display:block;height:100%;width:35%;background:#fff;border-radius:5px;animation:splashload 1.1s infinite}.skeleton{background:linear-gradient(90deg,var(--surface),#fff,var(--surface));background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:9px}.skeleton-row{height:82px;margin:7px 0}@keyframes shimmer{to{background-position:-200% 0}}@keyframes splashload{0%{transform:translateX(0)}100%{transform:translateX(430%)}}
+#splash{position:fixed;inset:0;background:linear-gradient(145deg,var(--blue-dark),var(--blue));color:#fff;display:flex;align-items:center;justify-content:center;z-index:3200;transition:opacity .35s ease}.splash-box{text-align:center}.splash-logo{width:82px;height:82px;border-radius:24px;background:#fff1;display:flex;align-items:center;justify-content:center;font-size:42px;margin:auto;box-shadow:0 10px 30px #0003}.splash-title{font-size:23px;font-weight:900;margin-top:14px}.splash-sub{font-size:12px;opacity:.8;margin-top:5px}.splash-loader{width:150px;height:4px;background:#ffffff33;border-radius:5px;overflow:hidden;margin:22px auto 0}.splash-loader span{display:block;height:100%;width:35%;background:#fff;border-radius:5px;animation:splashload 1.1s infinite}.skeleton{background:linear-gradient(90deg,var(--surface),#fff,var(--surface));background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:9px}.skeleton-row{height:82px;margin:7px 0}@keyframes shimmer{to{background-position:-200% 0}}@keyframes splashload{0%{transform:translateX(0)}100%{transform:translateX(430%)}}
 .signature-box{border:1.5px dashed var(--line);border-radius:12px;background:#fff;overflow:hidden}.signature-box canvas{display:block;width:100%;height:150px;touch-action:none}.signature-tools{display:flex;gap:7px;padding:7px;border-top:1px solid var(--line);background:var(--surface)}
 .scan-video{width:100%;height:250px;object-fit:cover;border-radius:12px;background:#000}.scan-frame{position:absolute;left:12%;right:12%;top:32%;height:36%;border:2px solid #fff;border-radius:12px;box-shadow:0 0 0 999px #0005;pointer-events:none}
-.pin-overlay{position:fixed;inset:0;background:rgba(15,23,42,.97);z-index:190;display:none;align-items:center;justify-content:center;padding:20px}.pin-overlay.show{display:flex}.pin-box{width:min(360px,100%);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:0 20px 50px #0006;text-align:center}.pin-dots{display:flex;justify-content:center;gap:10px;margin:16px}.pin-dot{width:12px;height:12px;border-radius:50%;background:var(--line)}.pin-dot.on{background:var(--blue)}.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.pin-key{padding:15px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:18px;font-weight:800;color:var(--ink)}
+.pin-overlay{position:fixed;inset:0;background:rgba(15,23,42,.97);z-index:3000;display:none;align-items:center;justify-content:center;padding:20px}.pin-overlay.show{display:flex}.pin-box{width:min(360px,100%);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:0 20px 50px #0006;text-align:center}.pin-dots{display:flex;justify-content:center;gap:10px;margin:16px}.pin-dot{width:12px;height:12px;border-radius:50%;background:var(--line)}.pin-dot.on{background:var(--blue)}.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.pin-key{padding:15px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:18px;font-weight:800;color:var(--ink)}
 .tool-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.tool-btn{padding:11px;border:1px solid var(--line);background:var(--surface);border-radius:10px;font-family:'Tajawal';font-weight:800;color:var(--ink);cursor:pointer}
 @media(max-width:360px){.pro-grid{grid-template-columns:1fr}.pro-card.wide{grid-column:auto}}
 
@@ -588,14 +593,6 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
 
       <div class="form-section">
         <div class="form-row">
-          <div class="form-label">الرقم التسلسلي</div>
-          <button type="button" class="btn-prim" onclick="openBarcodeScanner()" style="width:100%;">📷 مسح QR / باركود الرقم التسلسلي</button>
-          <div style="font-size:10.5px;color:var(--muted);margin-top:6px;">يدعم الهاتف إذا كان المتصفح يوفر BarcodeDetector.</div>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <div class="form-row">
           <div class="form-label">موقع العداد GPS</div>
           <div id="gpsRow" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <button onclick="manualCaptureGPS()" style="
@@ -651,13 +648,6 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
         </div>
       </div>
 
-      <div class="form-section">
-        <div class="form-row">
-          <div class="form-label"><span>✍️ توقيع الزبون</span><span id="signatureState" style="color:var(--muted);font-size:10px;">اختياري</span></div>
-          <div class="signature-box"><canvas id="signatureCanvas"></canvas><div class="signature-tools"><button type="button" class="btn-ghost" onclick="clearSignature()">مسح</button><button type="button" class="btn-prim" onclick="saveSignatureOnly()">حفظ التوقيع</button></div></div>
-        </div>
-      </div>
-
       <div style="height:126px;"></div>
       <div class="bottom-action-wrap" id="bottomActionWrap">
         <div class="quick-actions-bar" id="quickActionsBar">
@@ -692,69 +682,85 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
 </div>
 
 <!-- MANAGE SCREEN (hidden initially) -->
-<div id="manageScreen" style="display:none;width:100%;max-width:480px;position:fixed;inset:0;background:var(--surface);overflow-y:auto;padding-bottom:72px;z-index:40000;">
+<div id="manageScreen" style="display:none;width:100%;max-width:480px;position:fixed;inset:0;background:var(--surface);overflow-y:auto;padding-bottom:72px;z-index:2000;">
   <div style="height:58px;"></div>
   <div class="agency-banner">
-    <div>مديرية الجزائرية للمياه عين تموشنت — <span id="agencyWorkerLine">BENAMMAR Said</span></div>
+    <div>مديرية الجزائرية للمياه عين تموشنت</div>
     <div>الوكالة التجارية 1</div>
+    <div id="agencyWorkerLine" style="font-size:13px;font-weight:700;opacity:.92;">BENAMMAR Said</div>
   </div>
   <div class="manage-section">
     <div class="manage-card">
-      <h3>📋 معلومات الجولة</h3>
-      <div class="field"><label>رقم الجولة</label><input id="mRouteNum" type="text" placeholder="مثال: T216 أو 216" value="T00001"></div>
-      <div class="field"><label>الثلاثي</label><select id="mTriplet"><option value="1">الثلاثي الأول (R1T)</option><option value="2">الثلاثي الثاني (R2T)</option><option value="3">الثلاثي الثالث (R3T)</option><option value="4">الثلاثي الرابع (R4T)</option><option value="5">الثلاثي الخامس (R5T)</option><option value="6">الثلاثي السادس (R6T)</option><option value="7">الثلاثي السابع (R7T)</option><option value="8">الثلاثي الثامن (R8T)</option><option value="9">الثلاثي التاسع (R9T)</option></select></div>
-      <div class="field"><label>اسم العامل / القارئ</label><input id="mWorkerName" type="text" placeholder="الاسم الكامل"></div>
-      <button class="btn-prim" onclick="saveRouteInfo()" style="width:100%;padding:12px;">حفظ المعلومات</button>
-    </div>
-    <div class="manage-card">
-      <h3>⚙️ إعدادات الحساب</h3>
-      <div class="field"><label>سعر المتر المكعب</label><input id="mPrice" type="number" step="0.01" placeholder="مثال: 25"></div>
-      <div class="field"><label>العملة</label>
-        <input type="text" value="دينار جزائري (دج)" disabled style="background:var(--surface);color:var(--muted);">
+      <h3 class="mc-toggle" onclick="toggleManageCard('mc-routeinfo',this)"><span class="mc-title">📋 معلومات الجولة</span><span class="mc-arrow">▼</span></h3>
+      <div class="mc-body" id="mc-routeinfo">
+        <div class="field"><label>رقم الجولة</label><input id="mRouteNum" type="text" placeholder="مثال: T216 أو 216" value="T00001"></div>
+        <div class="field"><label>الثلاثي</label><select id="mTriplet"><option value="1">الثلاثي الأول (R1T)</option><option value="2">الثلاثي الثاني (R2T)</option><option value="3">الثلاثي الثالث (R3T)</option><option value="4">الثلاثي الرابع (R4T)</option><option value="5">الثلاثي الخامس (R5T)</option><option value="6">الثلاثي السادس (R6T)</option><option value="7">الثلاثي السابع (R7T)</option><option value="8">الثلاثي الثامن (R8T)</option><option value="9">الثلاثي التاسع (R9T)</option></select></div>
+        <div class="field"><label>اسم العامل / القارئ</label><input id="mWorkerName" type="text" placeholder="الاسم الكامل"></div>
+        <button class="btn-prim" onclick="saveRouteInfo()" style="width:100%;padding:12px;">حفظ المعلومات</button>
       </div>
-      <button class="btn-prim" onclick="saveSettings2()" style="width:100%;padding:12px;">حفظ الإعدادات</button>
     </div>
     <div class="manage-card">
-      <h3>📂 استيراد قائمة الزبائن</h3>
-      <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;">
-        عندك ملف نصي (txt) أو Excel فيه قائمة الزبائن؟ استورده هنا وراح تتحمّل القائمة كاملة دفعة وحدة بدل ما تدخلها يدوي واحد واحد.<br>
-        ✅ يدعم البرنامج <b>تلقائياً</b> ملفات تورني ADE ذات الأعمدة الثابتة (زي A01T3216.TXT) — يتعرّف عليها ويقرأ الاسم والعنوان ورقم العداد والقراءة السابقة مباشرة.<br>
-        <span style="color:var(--ink);">أو ملف txt عادي بفاصل:</span> أول سطر أسماء الأعمدة، مثال:<br>
-        <code style="direction:ltr;display:block;background:var(--surface);padding:6px 8px;border-radius:6px;margin-top:4px;font-size:11px;">name;meter;address;phone;prevIndex</code>
-      </p>
-      <button class="btn-prim" onclick="document.getElementById('subsFile').click()" style="width:100%;padding:12px;">استيراد ملف (txt / Excel / CSV)</button>
-      <input type="file" id="subsFile" accept=".txt,.xlsx,.xls,.csv" style="display:none" onchange="importSubscribersFile(this)">
-      <div id="importStatus" style="font-size:12px;color:var(--muted);margin-top:8px;"></div>
+      <h3 class="mc-toggle" onclick="toggleManageCard('mc-account',this)"><span class="mc-title">⚙️ إعدادات الحساب</span><span class="mc-arrow">▼</span></h3>
+      <div class="mc-body" id="mc-account">
+        <div class="field"><label>سعر المتر المكعب</label><input id="mPrice" type="number" step="0.01" placeholder="مثال: 25"></div>
+        <div class="field"><label>العملة</label>
+          <input type="text" value="دينار جزائري (دج)" disabled style="background:var(--surface);color:var(--muted);">
+        </div>
+        <button class="btn-prim" onclick="saveSettings2()" style="width:100%;padding:12px;">حفظ الإعدادات</button>
+      </div>
+    </div>
+    <div class="manage-card">
+      <h3 class="mc-toggle" onclick="toggleManageCard('mc-import',this)"><span class="mc-title">📂 استيراد قائمة الزبائن</span><span class="mc-arrow">▼</span></h3>
+      <div class="mc-body" id="mc-import">
+        <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;">
+          عندك ملف نصي (txt) أو Excel فيه قائمة الزبائن؟ استورده هنا وراح تتحمّل القائمة كاملة دفعة وحدة بدل ما تدخلها يدوي واحد واحد.<br>
+          ✅ يدعم البرنامج <b>تلقائياً</b> ملفات تورني ADE ذات الأعمدة الثابتة (زي A01T3216.TXT) — يتعرّف عليها ويقرأ الاسم والعنوان ورقم العداد والقراءة السابقة مباشرة.<br>
+          <span style="color:var(--ink);">أو ملف txt عادي بفاصل:</span> أول سطر أسماء الأعمدة، مثال:<br>
+          <code style="direction:ltr;display:block;background:var(--surface);padding:6px 8px;border-radius:6px;margin-top:4px;font-size:11px;">name;meter;address;phone;prevIndex</code>
+        </p>
+        <button class="btn-prim" onclick="document.getElementById('subsFile').click()" style="width:100%;padding:12px;">استيراد ملف (txt / Excel / CSV)</button>
+        <input type="file" id="subsFile" accept=".txt,.xlsx,.xls,.csv" style="display:none" onchange="importSubscribersFile(this)">
+        <div id="importStatus" style="font-size:12px;color:var(--muted);margin-top:8px;"></div>
+      </div>
     </div>
     <div class="manage-card">
       <h3>📤 تصدير النتائج</h3>
       <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;">
         تصدير الجولة الكاملة ينشئ مجلد الجولة داخل ADE ويضع فيه TXT وZIP. داخل ZIP توجد القراءة Excel، الصور، المواقع، و<strong>تقرير الجولة القابل للعرض والطباعة</strong>.
       </p>
-      <button class="btn-prim" onclick="exportCompleteRound()" style="width:100%;padding:12px;margin-bottom:8px;">📦 تصدير الجولة كاملة</button>
-      <button class="btn-ghost" onclick="openRouteReport()" style="width:100%;padding:12px;margin-bottom:8px;">📋 الاطلاع على التقرير</button>
-      <button class="btn-ghost" onclick="exportTXT()" style="width:100%;padding:12px;margin-bottom:8px;">تصدير TXT للجولة فقط</button>
-      <button class="btn-ghost" onclick="exportResultsZip()" style="width:100%;padding:12px;">تصدير ZIP للجولة فقط</button>
-    </div>
-    <div class="manage-card">
-      <h3>🗂️ إدارة الجولات</h3>
-      <button class="btn-prim" onclick="archiveCurrentRound(false)" style="width:100%;padding:12px;margin-bottom:8px;">🗂️ أرشفة الجولة الحالية</button>
-      <button class="btn-ghost" onclick="archiveAndStartNewRound()" style="width:100%;padding:12px;">➕ أرشفة وبدء جولة جديدة</button>
-    </div>
-    <div class="manage-card">
-      <h3>🎨 المظهر والحماية</h3>
-      <div class="tool-grid">
-        <button class="tool-btn" onclick="toggleDarkMode()">🌙 الوضع الليلي</button>
-        <button class="tool-btn" onclick="setupPin()">🔐 إعداد PIN</button>
-        <button class="tool-btn" onclick="disablePin()">🔓 إلغاء PIN</button>
+      <button class="btn-prim" onclick="exportCompleteRound()" style="width:100%;padding:12px;">📦 تصدير الجولة كاملة</button>
+      <h3 class="mc-toggle" onclick="toggleManageCard('mc-export-extra',this)" style="margin-top:12px;font-size:12.5px;"><span class="mc-title">خيارات تصدير إضافية</span><span class="mc-arrow">▼</span></h3>
+      <div class="mc-body" id="mc-export-extra">
+        <button class="btn-ghost" onclick="openRouteReport()" style="width:100%;padding:12px;margin-bottom:8px;">📋 الاطلاع على التقرير</button>
+        <button class="btn-ghost" onclick="exportTXT()" style="width:100%;padding:12px;margin-bottom:8px;">تصدير TXT للجولة فقط</button>
+        <button class="btn-ghost" onclick="exportResultsZip()" style="width:100%;padding:12px;">تصدير ZIP للجولة فقط</button>
       </div>
     </div>
     <div class="manage-card">
-      <h3>💾 نسخة احتياطية كاملة</h3>
-      <button class="btn-ghost" onclick="exportJSON()" style="width:100%;padding:12px;margin-bottom:8px;">تصدير JSON (نسخة احتياطية)</button>
-      <button class="btn-ghost" onclick="document.getElementById('importFile').click()" style="width:100%;padding:12px;">استيراد JSON</button>
-      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(this)">
-      <button class="btn-ghost" style="width:100%;padding:12px;margin-top:8px;color:var(--danger);border-color:#FFCDD2;" onclick="confirmClear()">مسح جميع البيانات</button>
+      <h3 class="mc-toggle" onclick="toggleManageCard('mc-archive',this)"><span class="mc-title">🗂️ إدارة الجولات</span><span class="mc-arrow">▼</span></h3>
+      <div class="mc-body" id="mc-archive">
+        <button class="btn-prim" onclick="archiveCurrentRound(false)" style="width:100%;padding:12px;margin-bottom:8px;">🗂️ أرشفة الجولة الحالية</button>
+        <button class="btn-ghost" onclick="archiveAndStartNewRound()" style="width:100%;padding:12px;">➕ أرشفة وبدء جولة جديدة</button>
+      </div>
+    </div>
+    <div class="manage-card">
+      <h3 class="mc-toggle" onclick="toggleManageCard('mc-appearance',this)"><span class="mc-title">🎨 المظهر والحماية</span><span class="mc-arrow">▼</span></h3>
+      <div class="mc-body" id="mc-appearance">
+        <div class="tool-grid">
+          <button class="tool-btn" onclick="toggleDarkMode()">🌙 الوضع الليلي</button>
+          <button class="tool-btn" onclick="setupPin()">🔐 إعداد PIN</button>
+          <button class="tool-btn" onclick="disablePin()">🔓 إلغاء PIN</button>
+        </div>
+      </div>
+    </div>
+    <div class="manage-card">
+      <h3 class="mc-toggle" onclick="toggleManageCard('mc-backup',this)"><span class="mc-title">💾 نسخة احتياطية كاملة</span><span class="mc-arrow">▼</span></h3>
+      <div class="mc-body" id="mc-backup">
+        <button class="btn-ghost" onclick="exportJSON()" style="width:100%;padding:12px;margin-bottom:8px;">تصدير JSON (نسخة احتياطية)</button>
+        <button class="btn-ghost" onclick="document.getElementById('importFile').click()" style="width:100%;padding:12px;">استيراد JSON</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(this)">
+        <button class="btn-ghost" style="width:100%;padding:12px;margin-top:8px;color:var(--danger);border-color:#FFCDD2;" onclick="confirmClear()">مسح جميع البيانات</button>
+      </div>
     </div>
   </div>
 </div>
@@ -805,6 +811,17 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
     <div style="position:relative"><video id="barcodeVideo" class="scan-video" playsinline muted></video><div class="scan-frame"></div></div>
     <div id="barcodeStatus" style="font-size:12px;color:var(--muted);margin:9px 0;">وجّه الكاميرا نحو الرقم التسلسلي.</div>
     <div class="btn-row"><button class="btn-ghost" onclick="closeBarcodeScanner()">إلغاء</button><button class="btn-prim" onclick="restartBarcodeScanner()">إعادة المحاولة</button></div>
+  </div>
+</div>
+<!-- Signature -->
+<div class="overlay" id="signatureModal">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>✍️ توقيع الزبون</span><span id="signatureState" style="color:var(--muted);font-size:10px;font-weight:600;">اختياري</span>
+    </div>
+    <div class="signature-box"><canvas id="signatureCanvas"></canvas><div class="signature-tools"><button type="button" class="btn-ghost" onclick="clearSignature()">مسح</button><button type="button" class="btn-prim" onclick="saveSignatureOnly()">حفظ التوقيع</button></div></div>
+    <div class="btn-row" style="margin-top:9px;"><button class="btn-ghost" style="width:100%;" onclick="closeSignatureModal()">إغلاق</button></div>
   </div>
 </div>
 <!-- PIN -->
@@ -1331,7 +1348,12 @@ function openMeter(id){
     pz.innerHTML = placeholderHtml;
   }
 
-  setupSignatureCanvas(m.signatureData||null);
+  // The signature canvas now lives inside a modal (hidden by default) instead of
+  // inline in the form, so it's (re)initialized on demand in quickSignature() when
+  // the sheet is actually opened — sizing a hidden canvas here would give it 0 width.
+  // Still reset the dirty flag per-customer so a drawn-but-unsaved signature from a
+  // previous meter can never leak onto this one.
+  signatureDirty = false;
 
   // annotations
   const ag = document.getElementById('annotGrid');
@@ -1466,7 +1488,7 @@ async function chooseLowReadingReason(reason){
 /* ===== SIGNATURE ===== */
 function setupSignatureCanvas(dataUrl){const c=document.getElementById('signatureCanvas');if(!c)return;const rect=c.getBoundingClientRect(),dpr=window.devicePixelRatio||1;c.width=rect.width*dpr;c.height=150*dpr;const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,rect.width,150);ctx.lineWidth=2;ctx.lineCap='round';ctx.strokeStyle='#1f2937';let drawing=false;const pos=e=>{const r=c.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}};c.onpointerdown=e=>{drawing=true;c.setPointerCapture(e.pointerId);const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);signatureDirty=true};c.onpointermove=e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke()};c.onpointerup=()=>drawing=false;c.onpointercancel=()=>drawing=false;if(dataUrl){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0,rect.width,150);img.src=dataUrl;}document.getElementById('signatureState').textContent=dataUrl?'محفوظ':'اختياري';}
 function clearSignature(){const c=document.getElementById('signatureCanvas');if(!c)return;const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);signatureDirty=true;document.getElementById('signatureState').textContent='تم المسح';}
-async function saveSignatureOnly(){const m=meters.find(x=>x.id===currentMeterId),c=document.getElementById('signatureCanvas');if(!m||!c)return;m.signatureData=c.toDataURL('image/png');signatureDirty=false;await saveMeters();document.getElementById('signatureState').textContent='محفوظ';toast('✍️ تم حفظ التوقيع');}
+async function saveSignatureOnly(){const m=meters.find(x=>x.id===currentMeterId),c=document.getElementById('signatureCanvas');if(!m||!c)return;m.signatureData=c.toDataURL('image/png');signatureDirty=false;await saveMeters();document.getElementById('signatureState').textContent='محفوظ';toast('✍️ تم حفظ التوقيع');setTimeout(closeSignatureModal,500);}
 
 /* ===== BARCODE / QR ===== */
 async function openBarcodeScanner(){const modal=document.getElementById('barcodeModal');modal.classList.add('show');await restartBarcodeScanner();}
@@ -1535,8 +1557,17 @@ async function saveReleve(){
 
 function quickScanCode(){ openBarcodeScanner(); }
 function quickSignature(){
-  const box=document.querySelector('.signature-box');
-  if(box) box.scrollIntoView({behavior:'smooth', block:'center'});
+  const modal=document.getElementById('signatureModal');
+  if(!modal) return;
+  modal.classList.add('show');
+  const m=meters.find(x=>x.id===currentMeterId);
+  // Canvas was hidden (display:none) until now, so its size must be (re)computed
+  // at the moment it becomes visible — sizing it while hidden would give it 0 width.
+  setupSignatureCanvas(m ? (m.signatureData||null) : null);
+}
+function closeSignatureModal(){
+  const modal=document.getElementById('signatureModal');
+  if(modal) modal.classList.remove('show');
 }
 
 async function skipMeter(){
@@ -1962,6 +1993,13 @@ async function addMeter(){
 }
 
 /* ====== SETTINGS ====== */
+function toggleManageCard(id, headerEl){
+  const body=document.getElementById(id);
+  if(!body) return;
+  const open=body.classList.toggle('open');
+  const arrow=headerEl ? headerEl.querySelector('.mc-arrow') : null;
+  if(arrow) arrow.textContent = open ? '▲' : '▼';
+}
 function saveRouteInfo(){
   const oldRoute=settings.routeNum;
   settings.routeNum = document.getElementById('mRouteNum').value.trim()||'T00001';
@@ -2348,6 +2386,7 @@ function buildLocationsReportHtml(){
     + "function findNearest(){"
     + "  const btn=document.getElementById('nearestBtn'), out=document.getElementById('nearestResult');"
     + "  if(!navigator.geolocation){ out.textContent='❌ الموقع الجغرافي غير مدعوم على هذا المتصفح'; return; }"
+    + "  if(window.isSecureContext===false){ out.textContent='⚠️ تحديد الموقع يحتاج فتح هذا الملف عبر اتصال آمن (https) أو من داخل التطبيق مباشرة — لا يعمل عند فتح الملف مباشرة من الجهاز. استعمل خريطة الجولة داخل التطبيق بدل هذا الملف لاستعمال أقرب زبون.'; return; }"
     + "  out.textContent='📡 يتم تحديد موقعك...';"
     + "  navigator.geolocation.getCurrentPosition(pos=>{"
     + "    const myLat=pos.coords.latitude, myLng=pos.coords.longitude;"
@@ -2357,7 +2396,13 @@ function buildLocationsReportHtml(){
     + "    const distLabel=bestDist>=1000?(bestDist/1000).toFixed(2)+' كم':Math.round(bestDist)+' م';"
     + "    out.textContent='🧭 أقرب زبون: '+best.name+' — '+distLabel;"
     + "    if(map){ map.setView([best.lat,best.lng],17); markersLayer.eachLayer(lyr=>{const ll=lyr.getLatLng(); if(Math.abs(ll.lat-best.lat)<1e-9 && Math.abs(ll.lng-best.lng)<1e-9) lyr.openPopup();}); }"
-    + "  }, ()=>{ out.textContent='❌ تعذر تحديد موقعك. تأكد من تفعيل GPS والصلاحيات.'; }, {enableHighAccuracy:true,timeout:12000,maximumAge:0});"
+    + "  }, (err)=>{"
+    + "    let msg='❌ تعذر تحديد موقعك.';"
+    + "    if(err && err.code===1) msg='❌ تم رفض إذن الموقع. فعّل صلاحية الموقع لهذا المتصفح من إعدادات الجهاز.';"
+    + "    else if(err && err.code===2) msg='❌ تعذر تحديد الموقع حالياً (تأكد من تفعيل GPS).';"
+    + "    else if(err && err.code===3) msg='❌ انتهت مهلة تحديد الموقع، حاول مجدداً في مكان مفتوح.';"
+    + "    out.textContent=msg;"
+    + "  }, {enableHighAccuracy:true,timeout:12000,maximumAge:0});"
     + "}"
     + "document.getElementById('nearestBtn').addEventListener('click',findNearest);"
     + "initMap();";
@@ -2368,11 +2413,11 @@ function buildLocationsReportHtml(){
     + '<h2>📍 مواقع الزبائن (' + withLoc.length + ')</h2>'
     + '<div class="toolbar"><button id="nearestBtn">🧭 أقرب زبون</button><span id="nearestResult"></span></div>'
     + '<div id="expMap"></div><div id="mapFallback"></div>'
-    + (withoutLoc.length ? '<h3>⚠️ زبائن بدون موقع مسجّل (' + withoutLoc.length + ')</h3><div class="nogps-note">هؤلاء الزبائن ليس لديهم إحداثيات GPS مسجّلة، لذلك لا يظهرون على الخريطة أعلاه.</div><table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th></tr>' + noGpsRows + '</table>' : '')
-    + '<h3>📋 القائمة الكاملة</h3>'
+    + '<h3>📋 قائمة الزبائن المسجّلة (' + withLoc.length + ')</h3>'
     + '<table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الإحداثيات</th><th>الموقع</th></tr>'
     + (withLoc.map(m=>'<tr><td>'+escH(m.meter||'')+'</td><td>'+escH(m.name||'')+'</td><td>'+escH(m.address||'')+'</td><td>'+Number(m.lat).toFixed(6)+', '+Number(m.lng).toFixed(6)+'</td><td><a class="pin" href="https://www.google.com/maps?q='+encodeURIComponent(m.lat+','+m.lng)+'" target="_blank" rel="noopener">📍 فتح الخريطة</a></td></tr>').join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888;">لا توجد مواقع مسجّلة</td></tr>')
     + '</table>'
+    + (withoutLoc.length ? '<h3>⚠️ زبائن بدون موقع مسجّل (' + withoutLoc.length + ')</h3><div class="nogps-note">هؤلاء الزبائن ليس لديهم إحداثيات GPS مسجّلة، لذلك لا يظهرون على الخريطة أعلاه.</div><table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th></tr>' + noGpsRows + '</table>' : '')
     + '</div>'
     + '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>'
     + '<script>' + script + '<\/script>'
@@ -2391,7 +2436,23 @@ function buildRouteReportHtml(){
   }).join('');
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير الجولة ${route}</title><style>
 @page{size:A4;margin:12mm}body{font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#222;margin:0;padding:16px}.report{max-width:1100px;margin:auto;background:#fff;padding:22px;border-radius:12px;box-shadow:0 2px 12px #0001}h1{margin:0 0 5px;color:#1565c0;font-size:25px}h2{font-size:17px;margin:22px 0 10px;color:#1565c0}.meta{color:#666;font-size:12px;line-height:1.8}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:16px}.card{border:1px solid #ddd;border-radius:9px;padding:12px;text-align:center}.num{font-size:22px;font-weight:800;color:#1565c0}.lbl{font-size:11px;color:#666;margin-top:4px}.bar{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin-top:12px}.bar>span{display:block;height:100%;background:#1565c0;width:${st.progress}%}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#1565c0;color:white;padding:8px}td{padding:7px;border-bottom:1px solid #eee;text-align:right}a{color:#1565c0;font-weight:bold;text-decoration:none}.actions{position:sticky;top:0;background:#fff;padding-bottom:10px;display:flex;gap:8px}.actions button{border:0;border-radius:8px;padding:10px 14px;background:#1565c0;color:#fff;font-weight:bold}@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}table{font-size:9px}.report{padding:12px}}@media print{body{background:#fff;padding:0}.report{box-shadow:none;padding:0}.actions{display:none}.card{break-inside:avoid}}
-</style></head><body><div class="report"><div class="actions"><button onclick="window.print()">🖨️ طباعة</button><button onclick="window.close()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>🎯 لوحة إحصائيات الجولة</h2><div class="grid"><div class="card"><div class="num">${st.inh}</div><div class="lbl">🚫 عدد INH</div></div><div class="card"><div class="num">${st.zero}</div><div class="lbl">صفر استهلاك</div></div><div class="card"><div class="num">${st.high}</div><div class="lbl">استهلاك ضخم</div></div><div class="card"><div class="num">${st.leak}</div><div class="lbl">💧 تسربات FC</div></div><div class="card"><div class="num">${st.problems}</div><div class="lbl">⚠️ عدادات ذات مشاكل</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">📍 مواقع مسجلة</div></div><div class="card"><div class="num">${st.progress}%</div><div class="lbl">📊 نسبة الإنجاز</div></div></div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(hasReading(m)?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(hasReading).sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div>
+</style></head><body><div class="report"><div class="actions"><button onclick="tryPrintReport()">🖨️ طباعة</button><button onclick="tryCloseReport()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>🎯 لوحة إحصائيات الجولة</h2><div class="grid"><div class="card"><div class="num">${st.inh}</div><div class="lbl">🚫 عدد INH</div></div><div class="card"><div class="num">${st.zero}</div><div class="lbl">صفر استهلاك</div></div><div class="card"><div class="num">${st.high}</div><div class="lbl">استهلاك ضخم</div></div><div class="card"><div class="num">${st.leak}</div><div class="lbl">💧 تسربات FC</div></div><div class="card"><div class="num">${st.problems}</div><div class="lbl">⚠️ عدادات ذات مشاكل</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">📍 مواقع مسجلة</div></div><div class="card"><div class="num">${st.progress}%</div><div class="lbl">📊 نسبة الإنجاز</div></div></div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(hasReading(m)?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(hasReading).sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div>
+<script>
+function tryPrintReport(){
+  try{ window.print(); }
+  catch(e){ alert('تعذر فتح نافذة الطباعة تلقائياً. افتح هذا الملف داخل متصفح كامل (مثل Chrome) بدل عارض الملفات، ثم استعمل خيار الطباعة من قائمة المتصفح.'); }
+}
+function tryCloseReport(){
+  window.close();
+  // Browsers block window.close() on tabs/windows that weren't opened via script
+  // (e.g. a file opened from a file manager or a normal browser tab) — if we're
+  // still here shortly after, that's what happened, so explain it instead of a
+  // silent no-op.
+  setTimeout(function(){
+    alert('لا يمكن إغلاق هذا التبويب تلقائياً لأسباب أمنية في المتصفح. يمكنك إغلاقه يدوياً من المتصفح.');
+  }, 300);
+}
+<\/script>
 </body></html>`;
 }
 function showReportHtml(html){const viewer=document.getElementById('reportViewer'),frame=document.getElementById('reportFrame');if(!viewer||!frame){toast('تعذر فتح عارض التقرير');return false;}frame.srcdoc=html;viewer.style.display='block';document.body.style.overflow='hidden';return true;}
@@ -2415,7 +2476,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=27');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=28');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -2481,7 +2542,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=27').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=28').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
