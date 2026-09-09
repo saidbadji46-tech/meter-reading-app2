@@ -250,21 +250,14 @@ main{flex:1;overflow-y:auto;}
   font-family:'Tajawal',sans-serif;font-size:14px;font-weight:700;color:var(--muted);
   padding:13px 18px;cursor:pointer;
 }
-.postsave-bar{
-  display:none;position:sticky;bottom:0;z-index:35;
-  background:#fff;border-top:1px solid var(--line);
-  padding:10px 14px;flex-direction:column;gap:8px;
-}
-.postsave-bar.show{display:flex;}
-.postsave-status{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:var(--success);}
-.postsave-actions{display:flex;gap:8px;}
+.bottom-action-wrap{position:sticky;bottom:0;z-index:35;background:#fff;}
+.quick-actions-bar{display:flex;gap:8px;padding:9px 14px 0;}
 .btn-quick{
   flex:1;background:var(--surface);border:1.5px solid var(--line);border-radius:8px;
   font-family:'Tajawal',sans-serif;font-size:13px;font-weight:700;color:var(--ink);
   padding:11px 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
 }
-.btn-quick.next{background:var(--blue);color:#fff;border-color:var(--blue);flex:1.3;}
-body.dark .postsave-bar{background:var(--card);}
+body.dark .bottom-action-wrap{background:var(--card);}
 
 /* ===== STATS VIEW ===== */
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px;}
@@ -665,20 +658,18 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
         </div>
       </div>
 
-      <div style="height:72px;"></div>
-      <div class="save-bar" id="saveBar">
-        <button class="btn-skip" onclick="skipMeter()">تخطّي</button>
-        <button class="btn-save" onclick="saveReleve()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg>
-          حفظ القراءة
-        </button>
-      </div>
-      <div class="postsave-bar" id="postSaveBar">
-        <div class="postsave-status">✅ تم حفظ القراءة — إجراءات سريعة:</div>
-        <div class="postsave-actions">
-          <button type="button" class="btn-quick" onclick="postSaveScan()">📷 مسح الكود</button>
-          <button type="button" class="btn-quick" onclick="postSaveSignature()">✍️ توقيع الزبون</button>
-          <button type="button" class="btn-quick next" onclick="proceedAfterSave()" id="postSaveNextBtn">التالي ▶</button>
+      <div style="height:126px;"></div>
+      <div class="bottom-action-wrap" id="bottomActionWrap">
+        <div class="quick-actions-bar" id="quickActionsBar">
+          <button type="button" class="btn-quick" onclick="quickScanCode()">📷 مسح الكود</button>
+          <button type="button" class="btn-quick" onclick="quickSignature()">✍️ توقيع الزبون</button>
+        </div>
+        <div class="save-bar" id="saveBar">
+          <button class="btn-skip" onclick="skipMeter()">تخطّي</button>
+          <button class="btn-save" onclick="saveReleve()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg>
+            حفظ القراءة
+          </button>
         </div>
       </div>
     </div>
@@ -701,10 +692,10 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
 </div>
 
 <!-- MANAGE SCREEN (hidden initially) -->
-<div id="manageScreen" style="display:none;width:100%;max-width:480px;position:fixed;inset:0;background:var(--surface);overflow-y:auto;padding-bottom:72px;z-index:27;">
+<div id="manageScreen" style="display:none;width:100%;max-width:480px;position:fixed;inset:0;background:var(--surface);overflow-y:auto;padding-bottom:72px;z-index:40000;">
   <div style="height:58px;"></div>
   <div class="agency-banner">
-    <div>مديرية الجزائرية للمياه عين تموشنت</div>
+    <div>مديرية الجزائرية للمياه عين تموشنت — <span id="agencyWorkerLine">BENAMMAR Said</span></div>
     <div>الوكالة التجارية 1</div>
   </div>
   <div class="manage-section">
@@ -719,12 +710,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
       <h3>⚙️ إعدادات الحساب</h3>
       <div class="field"><label>سعر المتر المكعب</label><input id="mPrice" type="number" step="0.01" placeholder="مثال: 25"></div>
       <div class="field"><label>العملة</label>
-        <select id="mCurrency">
-          <option value="دج">دينار جزائري (دج)</option>
-          <option value="ر.س">ريال سعودي (ر.س)</option>
-          <option value="ج.م">جنيه مصري (ج.م)</option>
-          <option value="$">دولار ($)</option>
-        </select>
+        <input type="text" value="دينار جزائري (دج)" disabled style="background:var(--surface);color:var(--muted);">
       </div>
       <button class="btn-prim" onclick="saveSettings2()" style="width:100%;padding:12px;">حفظ الإعدادات</button>
     </div>
@@ -862,7 +848,7 @@ const LOW_READING_REASONS = [
 ];
 
 let meters = [];
-let settings = { price: 25, currency: 'دج', routeNum: 'T00001', worker: '', triplet: '1' };
+let settings = { price: 25, currency: 'دج', routeNum: 'T00001', worker: 'BENAMMAR Said', triplet: '1' };
 let currentMeterId = null;
 let currentTab = 'tab-all';
 let selectedAnnots = [];
@@ -940,6 +926,7 @@ async function loadData(){
     }
   }catch(e){}
   const s = await sg('settings'); if(s){ settings=Object.assign(settings, JSON.parse(s)); }
+  if(!settings.worker) settings.worker = 'BENAMMAR Said';
   try{ const a=await sg('roundArchives'); roundArchives=a?JSON.parse(a):[]; }catch(e){ roundArchives=[]; }
   if(settings.darkMode) document.body.classList.add('dark');
   currentRoundCreatedAt = settings.currentRoundCreatedAt || Date.now();
@@ -947,9 +934,10 @@ async function loadData(){
   document.getElementById('mTriplet').value = String(settings.triplet||'1');
   document.getElementById('mWorkerName').value = settings.worker||'';
   document.getElementById('mPrice').value = settings.price;
-  document.getElementById('mCurrency').value = settings.currency;
+  settings.currency = 'دج';
   document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
   document.getElementById('topBadge').textContent = settings.routeNum;
+  const agencyWorkerEl=document.getElementById('agencyWorkerLine'); if(agencyWorkerEl) agencyWorkerEl.textContent=settings.worker||'BENAMMAR Said';
   try{ const rc = await sg('routeStatsCollapsed'); routeStatsCollapsed = rc ? JSON.parse(rc) : false; }catch(e){ routeStatsCollapsed = false; }
   applyRouteStatsCollapse();
   renderAll();
@@ -977,6 +965,15 @@ function navSwitch(mode){
   document.getElementById('topBadge').textContent = mode==='manage'?'⚙️':settings.routeNum;
   document.getElementById('backBtn').style.display='none';
   document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active', (i===0&&mode==='list')||(i===1&&mode==='manage')));
+  if(mode==='manage' && routeMapObj){
+    // Leaflet's internal panes use high z-index values that can leak above other
+    // fixed-position screens; fully tear the map down when leaving المواقع so
+    // nothing stays floating over "الإدارة". It's recreated fresh next time
+    // renderRouteMap() runs (i.e. when المواقع tab is opened again).
+    try{ routeMapObj.remove(); }catch(e){}
+    routeMapObj = null;
+    routeMapMarkersLayer = null;
+  }
 }
 const fabEl = document.querySelector('.fab');
 function navSwitchVisible(){
@@ -1013,6 +1010,11 @@ function goBack(){
 
 /* ====== RENDER LIST ====== */
 function escH(s){ return String(s??'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+// A meter has a recorded reading if newIndex is a real number — regardless of whether
+// it's flagged with a signal/anomaly (status 'anom') or clean ('done'). Anomaly meters
+// with a valid reading (e.g. reading + INH/FC/etc code together) must still show and
+// count in consumption/amount totals, lists and reports.
+function hasReading(m){ return m && m.newIndex!=null && m.newIndex!=='' && !isNaN(Number(m.newIndex)); }
 
 function renderAll(){
   const q=(document.getElementById('searchBox')||{value:''}).value.toLowerCase();
@@ -1076,7 +1078,8 @@ function renderListTo(containerId, list){
       : m.status==='anom'
       ? `<span class="chip chip-anom">${escH(m.annot||'إشارة')}</span>`
       : `<span class="chip chip-pending">معلّقة</span>`;
-    const idxDisplay = m.status==='done'
+    const hasReadingVal = hasReading(m);
+    const idxDisplay = hasReadingVal
       ? `<div class="meter-index done">${m.newIndex}</div>`
       : `<div class="meter-index" style="color:var(--muted);">——</div>`;
     return `
@@ -1088,7 +1091,7 @@ function renderListTo(containerId, list){
           <div class="meter-meta">
             <span>🔢 ${escH(m.meterSerial||'—')}</span>
             <span>📍 ${escH(m.address||'—')}</span>
-            ${m.status==='done' ? `<span>📊 استهلاك ${m.consumption} م³</span>` : ''}
+            ${hasReadingVal ? `<span>📊 استهلاك ${m.consumption} م³</span>` : ''}
           </div>
           ${chip}
         </div>
@@ -1131,17 +1134,18 @@ function renderRouteStatsPanel(){
   const doneMeters=meters.filter(m=>m.status==='done');
   const anomMeters=meters.filter(m=>m.status==='anom');
   const pending=total-doneMeters.length-anomMeters.length;
+  const readMeters=meters.filter(hasReading); // includes anom meters that still carry a valid reading
   const codesOf=m=>String(m.annot||'').split('+').map(c=>c.trim()).filter(Boolean);
   const inhCount=meters.filter(m=>codesOf(m).includes('INH')).length;
   const leakCount=meters.filter(m=>codesOf(m).includes('FC')).length;
   const problemCount=anomMeters.filter(m=>{const c=codesOf(m).filter(x=>x!=='INH'&&x!=='FC');return c.length>0;}).length;
-  const consumptions=doneMeters.map(m=>Number(m.consumption)||0);
+  const consumptions=readMeters.map(m=>Number(m.consumption)||0);
   const avgCons=consumptions.length?consumptions.reduce((a,b)=>a+b,0)/consumptions.length:0;
   const highThreshold=Math.max(avgCons*3, avgCons+30, 50);
-  const zeroCount=doneMeters.filter(m=>(Number(m.consumption)||0)===0).length;
-  const highCount=doneMeters.filter(m=>(Number(m.consumption)||0)>highThreshold).length;
+  const zeroCount=readMeters.filter(m=>(Number(m.consumption)||0)===0).length;
+  const highCount=readMeters.filter(m=>(Number(m.consumption)||0)>highThreshold).length;
   const totalConsumption=consumptions.reduce((a,b)=>a+b,0);
-  const totalAmount=doneMeters.reduce((s,m)=>s+(Number(m.amount)||0),0);
+  const totalAmount=readMeters.reduce((s,m)=>s+(Number(m.amount)||0),0);
   const gpsCount=meters.filter(m=>m.lat&&m.lng).length;
   const progress=total?Math.round(doneMeters.length/total*100):0;
   const currency=(settings&&settings.currency)||'';
@@ -1165,7 +1169,8 @@ function renderRouteStatsPanel(){
 /* ===== PRO DASHBOARD / ARCHIVE / VALIDATION ===== */
 function archiveStats(ms){
   const done=ms.filter(m=>m.status==='done'), anom=ms.filter(m=>m.status==='anom');
-  return {total:ms.length,done:done.length,anom:anom.length,pending:ms.length-done.length-anom.length,consumption:done.reduce((s,m)=>s+(Number(m.consumption)||0),0)};
+  const readMs=ms.filter(hasReading);
+  return {total:ms.length,done:done.length,anom:anom.length,pending:ms.length-done.length-anom.length,consumption:readMs.reduce((s,m)=>s+(Number(m.consumption)||0),0)};
 }
 function getPreviousRound(){
   const route=getRouteExportName();
@@ -1188,7 +1193,7 @@ function renderDeepDashboard(){
   const canvas=document.getElementById('dailyProgressChart'); if(!canvas) return;
   const ctx=canvas.getContext('2d'), w=canvas.clientWidth||330, h=190, dpr=window.devicePixelRatio||1; canvas.width=w*dpr;canvas.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,w,h);
-  const by={}; meters.filter(m=>m.savedAt).forEach(m=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ',{day:'2-digit',month:'2-digit'});by[k]=(by[k]||0)+(m.status==='done'?1:0)});
+  const by={}; meters.filter(m=>m.savedAt).forEach(m=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ',{day:'2-digit',month:'2-digit'});by[k]=(by[k]||0)+(hasReading(m)?1:0)});
   const keys=Object.keys(by); const vals=keys.map(k=>by[k]); const max=Math.max(1,...vals); const pad=28;
   ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--line');ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad,15);ctx.lineTo(pad,h-28);ctx.lineTo(w-10,h-28);ctx.stroke();
   if(!keys.length){ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--muted');ctx.font='12px Tajawal';ctx.fillText('سيظهر التطور هنا بعد حفظ القراءات',pad,80);return;}
@@ -1196,8 +1201,8 @@ function renderDeepDashboard(){
   keys.forEach((k,i)=>{const x=pad+i*step,y=h-28-(vals[i]/max)*(h-55);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--blue');ctx.lineWidth=3;ctx.stroke();
   keys.forEach((k,i)=>{const x=pad+i*step,y=h-28-(vals[i]/max)*(h-55);ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--blue');ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--muted');ctx.font='10px Tajawal';ctx.textAlign='center';ctx.fillText(k,x,h-10);ctx.fillText(vals[i],x,y-9);});
   const prev=getPreviousRound(); const compare=document.getElementById('compareList');
-  if(compare){ if(!prev){compare.innerHTML='<div class="empty-state" style="padding:18px 5px">لا توجد جولة سابقة للمقارنة بعد.</div>';} else {const rows=meters.map(m=>{const pm=prev.meters.find(x=>x.meter===m.meter); if(!pm||m.status!=='done')return null;const cur=Number(m.consumption)||0, old=Number(pm.consumption)||0, delta=cur-old,pct=old?delta/old*100:null;const suspicious=pct!=null&&Math.abs(pct)>=50;return `<div class="compare-row"><div class="compare-info"><div class="compare-name">${escH(m.name)}</div><div class="compare-meta">${escH(m.meter)} · الحالي ${cur} م³ · السابق ${old} م³</div></div><div class="${suspicious?(delta>0?'delta-up':'delta-down'):'delta-ok'}">${delta>0?'+':''}${delta} م³${pct!=null?` (${delta>0?'+':''}${pct.toFixed(0)}%)`:''}</div>${suspicious?'<span class="alert-pill">⚠️</span>':''}</div>`}).filter(Boolean); compare.innerHTML=rows.length?rows.slice(0,25).join(''):'<div class="empty-state" style="padding:18px">لا توجد قراءات مكتملة مشتركة.</div>';}}
-  const rank=document.getElementById('rankList'); if(rank){const top=meters.filter(m=>m.status==='done').sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10);rank.innerHTML=top.length?top.map((m,i)=>`<div class="rank-row"><div class="rank-num">${i+1}</div><div class="rank-info"><div class="rank-name">${escH(m.name)}</div><div class="rank-meta">${escH(m.meter)}</div></div><div class="pro-value" style="font-size:16px">${m.consumption||0}<small style="font-size:9px"> م³</small></div></div>`).join(''):'<div class="empty-state" style="padding:18px">لا توجد قراءات بعد.</div>';}
+  if(compare){ if(!prev){compare.innerHTML='<div class="empty-state" style="padding:18px 5px">لا توجد جولة سابقة للمقارنة بعد.</div>';} else {const rows=meters.map(m=>{const pm=prev.meters.find(x=>x.meter===m.meter); if(!pm||!hasReading(m))return null;const cur=Number(m.consumption)||0, old=Number(pm.consumption)||0, delta=cur-old,pct=old?delta/old*100:null;const suspicious=pct!=null&&Math.abs(pct)>=50;return `<div class="compare-row"><div class="compare-info"><div class="compare-name">${escH(m.name)}</div><div class="compare-meta">${escH(m.meter)} · الحالي ${cur} م³ · السابق ${old} م³</div></div><div class="${suspicious?(delta>0?'delta-up':'delta-down'):'delta-ok'}">${delta>0?'+':''}${delta} م³${pct!=null?` (${delta>0?'+':''}${pct.toFixed(0)}%)`:''}</div>${suspicious?'<span class="alert-pill">⚠️</span>':''}</div>`}).filter(Boolean); compare.innerHTML=rows.length?rows.slice(0,25).join(''):'<div class="empty-state" style="padding:18px">لا توجد قراءات مكتملة مشتركة.</div>';}}
+  const rank=document.getElementById('rankList'); if(rank){const top=meters.filter(hasReading).sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10);rank.innerHTML=top.length?top.map((m,i)=>`<div class="rank-row"><div class="rank-num">${i+1}</div><div class="rank-info"><div class="rank-name">${escH(m.name)}</div><div class="rank-meta">${escH(m.meter)}</div></div><div class="pro-value" style="font-size:16px">${m.consumption||0}<small style="font-size:9px"> م³</small></div></div>`).join(''):'<div class="empty-state" style="padding:18px">لا توجد قراءات بعد.</div>';}
   const lab=document.getElementById('dailyChartLabel');if(lab)lab.textContent=keys.length?`${keys.length} أيام`:'—';
 }
 async function archiveCurrentRound(silent=false){
@@ -1289,7 +1294,6 @@ async function commitCustomerNationalId(){
 
 function openMeter(id){
   currentMeterId = id;
-  hidePostSaveBar();
   const m = meters.find(x=>x.id===id);
   if(!m) return;
   selectedAnnots = normalizeAnnotList(m.annot);
@@ -1520,22 +1524,7 @@ async function saveReleve(){
   if(archiveStats(meters).pending===0) await archiveCurrentRound(true);
   toast('✅ تم الحفظ');
 
-  pendingNextMeterId = findNextPendingId(m.id);
-  const saveBar=document.getElementById('saveBar'), postBar=document.getElementById('postSaveBar'), nextBtn=document.getElementById('postSaveNextBtn');
-  if(saveBar) saveBar.style.display='none';
-  if(postBar) postBar.classList.add('show');
-  if(nextBtn) nextBtn.textContent = pendingNextMeterId ? 'التالي ▶' : '🎉 إنهاء';
-}
-
-let pendingNextMeterId = null;
-function hidePostSaveBar(){
-  const saveBar=document.getElementById('saveBar'), postBar=document.getElementById('postSaveBar');
-  if(postBar) postBar.classList.remove('show');
-  if(saveBar) saveBar.style.display='flex';
-}
-function proceedAfterSave(){
-  const nextId = pendingNextMeterId;
-  hidePostSaveBar();
+  const nextId = findNextPendingId(m.id);
   if(nextId){
     openMeter(nextId);
   }else{
@@ -1543,8 +1532,9 @@ function proceedAfterSave(){
     goBack();
   }
 }
-function postSaveScan(){ openBarcodeScanner(); }
-function postSaveSignature(){
+
+function quickScanCode(){ openBarcodeScanner(); }
+function quickSignature(){
   const box=document.querySelector('.signature-box');
   if(box) box.scrollIntoView({behavior:'smooth', block:'center'});
 }
@@ -1798,7 +1788,7 @@ async function ensureLeaflet(){
   return typeof window.L==='object' && !!window.L.map;
 }
 function meterPopupHtml(m){
-  const lastReading = m.status==='done' ? `${escH(m.newIndex??'—')} (استهلاك ${escH(m.consumption??'—')} م³)` : 'لم تُقرأ بعد';
+  const lastReading = hasReading(m) ? `${escH(m.newIndex)} (استهلاك ${escH(m.consumption??'—')} م³)` : 'لم تُقرأ بعد';
   return `<div class="map-popup"><b>${escH(m.name)}</b><br>رمز الزبون: ${escH(m.meter)}<br>آخر قراءة: ${lastReading}<br><a href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank" rel="noopener">🧭 فتح الاتجاهات</a></div>`;
 }
 async function renderRouteMap(){
@@ -1980,11 +1970,12 @@ function saveRouteInfo(){
   settings.worker = document.getElementById('mWorkerName').value.trim();
   saveSettings3();
   document.getElementById('topBadge').textContent = settings.routeNum;
+  const agencyWorkerEl=document.getElementById('agencyWorkerLine'); if(agencyWorkerEl) agencyWorkerEl.textContent=settings.worker||'BENAMMAR Said';
   toast('تم حفظ معلومات الجولة');
 }
 function saveSettings2(){
   settings.price = parseFloat(document.getElementById('mPrice').value)||25;
-  settings.currency = document.getElementById('mCurrency').value;
+  settings.currency = 'دج';
   saveSettings3();
   document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
   toast('تم حفظ الإعدادات');
@@ -2295,10 +2286,97 @@ function getRouteStats(){
   const pending = total - done - anom;
   const gps = meters.filter(m=>m.lat && m.lng).length;
   const photos = meters.filter(m=>m.hasPhoto).length;
-  const consumption = meters.reduce((sum,m)=>sum + (m.status==='done' ? (Number(m.consumption)||0) : 0), 0);
-  const amount = meters.reduce((sum,m)=>sum + (m.status==='done' ? (Number(m.amount)||0) : 0), 0);
+  const readMeters = meters.filter(hasReading);
+  const consumption = readMeters.reduce((sum,m)=>sum + (Number(m.consumption)||0), 0);
+  const amount = readMeters.reduce((sum,m)=>sum + (Number(m.amount)||0), 0);
   const progress = total ? Math.round(done/total*100) : 0;
-  return {total,done,pending,anom,gps,photos,consumption,amount,progress};
+  const codesOf=m=>String(m.annot||'').split('+').map(c=>c.trim()).filter(Boolean);
+  const inh = meters.filter(m=>codesOf(m).includes('INH')).length;
+  const leak = meters.filter(m=>codesOf(m).includes('FC')).length;
+  const problems = meters.filter(m=>m.status==='anom').filter(m=>{const c=codesOf(m).filter(x=>x!=='INH'&&x!=='FC');return c.length>0;}).length;
+  const consArr = readMeters.map(m=>Number(m.consumption)||0);
+  const avgCons = consArr.length ? consArr.reduce((a,b)=>a+b,0)/consArr.length : 0;
+  const highThreshold = Math.max(avgCons*3, avgCons+30, 50);
+  const zero = readMeters.filter(m=>(Number(m.consumption)||0)===0).length;
+  const high = readMeters.filter(m=>(Number(m.consumption)||0)>highThreshold).length;
+  return {total,done,pending,anom,gps,photos,consumption,amount,progress,inh,leak,problems,zero,high};
+}
+function buildLocationsReportHtml(){
+  const withLoc = meters.filter(m=>m.lat && m.lng);
+  const withoutLoc = meters.filter(m=>!(m.lat && m.lng));
+  const pins = withLoc.map(m=>({
+    name: m.name||'', meter: m.meter||'', address: m.address||'',
+    lat: Number(m.lat), lng: Number(m.lng),
+    status: m.status||'pending',
+    newIndex: hasReading(m) ? m.newIndex : null,
+    consumption: hasReading(m) ? (Number(m.consumption)||0) : null
+  }));
+  const noGpsRows = withoutLoc.map(m=>
+    '<tr><td>'+escH(m.meter||'')+'</td><td>'+escH(m.name||'')+'</td><td>'+escH(m.address||'')+'</td></tr>'
+  ).join('');
+  const css = "body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#f4f6f8;margin:0;padding:0;color:#1a1a1a;}"
+    + ".wrap{max-width:1000px;margin:0 auto;padding:18px;}"
+    + "h2{color:#1565c0;margin:0 0 14px;font-size:19px;}"
+    + "h3{color:#1565c0;margin:22px 0 10px;font-size:15px;}"
+    + ".toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap;}"
+    + "#nearestBtn{background:#1565c0;color:#fff;border:0;border-radius:8px;padding:10px 16px;font-weight:700;font-size:13px;cursor:pointer;}"
+    + "#nearestBtn:active{background:#0d47a1;}"
+    + "#nearestResult{font-size:12.5px;color:#444;font-weight:700;}"
+    + "#expMap{height:420px;width:100%;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.12);background:#eef2f5;}"
+    + "#mapFallback{display:none;padding:16px;text-align:center;color:#888;font-size:12.5px;background:#eef2f5;border-radius:12px;}"
+    + "table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);}"
+    + "th{background:#1565c0;color:#fff;padding:12px 10px;font-size:13px;text-align:right;}"
+    + "td{padding:11px 10px;border-top:1px solid #eee;font-size:13px;text-align:right;}"
+    + "tr:nth-child(even){background:#fafbfc;}"
+    + "a.pin{display:inline-block;padding:7px 14px;background:#1565c0;color:#fff;text-decoration:none;border-radius:7px;font-weight:700;font-size:12px;white-space:nowrap;}"
+    + "a.pin:hover{background:#0d47a1;}"
+    + ".nogps-note{background:#fff8f0;border:1px solid #ffcc80;color:#e65100;padding:10px 14px;border-radius:8px;font-size:12.5px;font-weight:700;margin-bottom:10px;}"
+    + ".map-popup{font-family:'Segoe UI',Tahoma,Arial,sans-serif;font-size:12.5px;line-height:1.7;text-align:right;}"
+    + ".map-popup b{color:#1565c0;}";
+  const script = ""
+    + "const DATA=" + JSON.stringify(pins) + ";"
+    + "function haversine(lat1,lng1,lat2,lng2){const R=6371000,toRad=x=>x*Math.PI/180;const dLat=toRad(lat2-lat1),dLng=toRad(lng2-lng1);const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}"
+    + "function popupHtml(p){const last=p.newIndex!=null?(p.newIndex+' (استهلاك '+p.consumption+' م³)'):'لم تُقرأ بعد';return '<div class=\"map-popup\"><b>'+p.name+'</b><br>رمز الزبون: '+p.meter+'<br>آخر قراءة: '+last+'<br><a href=\"https://www.google.com/maps?q='+encodeURIComponent(p.lat+','+p.lng)+'\" target=\"_blank\">🧭 فتح الاتجاهات</a></div>';}"
+    + "let map,markersLayer;"
+    + "function initMap(){"
+    + "  if(!window.L || !DATA.length){ document.getElementById('expMap').style.display='none'; document.getElementById('mapFallback').style.display='block'; document.getElementById('mapFallback').textContent = !DATA.length ? 'لا توجد مواقع مسجّلة لعرضها على الخريطة.' : '❌ تعذر تحميل الخريطة (تحقق من الاتصال بالإنترنت).'; return; }"
+    + "  map=L.map('expMap'); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);"
+    + "  markersLayer=L.layerGroup().addTo(map); const bounds=[];"
+    + "  DATA.forEach(p=>{const color=p.status==='done'?'#2e7d32':(p.status==='anom'?'#f9a825':'#1565c0');L.circleMarker([p.lat,p.lng],{radius:9,color:'#fff',weight:2,fillColor:color,fillOpacity:.95}).bindPopup(popupHtml(p)).addTo(markersLayer);bounds.push([p.lat,p.lng]);});"
+    + "  if(bounds.length===1) map.setView(bounds[0],16); else map.fitBounds(bounds,{padding:[24,24]});"
+    + "}"
+    + "function findNearest(){"
+    + "  const btn=document.getElementById('nearestBtn'), out=document.getElementById('nearestResult');"
+    + "  if(!navigator.geolocation){ out.textContent='❌ الموقع الجغرافي غير مدعوم على هذا المتصفح'; return; }"
+    + "  out.textContent='📡 يتم تحديد موقعك...';"
+    + "  navigator.geolocation.getCurrentPosition(pos=>{"
+    + "    const myLat=pos.coords.latitude, myLng=pos.coords.longitude;"
+    + "    let cands=DATA.filter(p=>p.status!=='done'&&p.status!=='anom'); if(!cands.length) cands=DATA;"
+    + "    if(!cands.length){ out.textContent='❌ لا توجد مواقع للمقارنة'; return; }"
+    + "    let best=null,bestDist=Infinity; cands.forEach(p=>{const d=haversine(myLat,myLng,p.lat,p.lng); if(d<bestDist){bestDist=d;best=p;}});"
+    + "    const distLabel=bestDist>=1000?(bestDist/1000).toFixed(2)+' كم':Math.round(bestDist)+' م';"
+    + "    out.textContent='🧭 أقرب زبون: '+best.name+' — '+distLabel;"
+    + "    if(map){ map.setView([best.lat,best.lng],17); markersLayer.eachLayer(lyr=>{const ll=lyr.getLatLng(); if(Math.abs(ll.lat-best.lat)<1e-9 && Math.abs(ll.lng-best.lng)<1e-9) lyr.openPopup();}); }"
+    + "  }, ()=>{ out.textContent='❌ تعذر تحديد موقعك. تأكد من تفعيل GPS والصلاحيات.'; }, {enableHighAccuracy:true,timeout:12000,maximumAge:0});"
+    + "}"
+    + "document.getElementById('nearestBtn').addEventListener('click',findNearest);"
+    + "initMap();";
+  return '<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>مواقع الزبائن</title>'
+    + '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">'
+    + '<style>' + css + '</style></head><body><div class="wrap">'
+    + '<h2>📍 مواقع الزبائن (' + withLoc.length + ')</h2>'
+    + '<div class="toolbar"><button id="nearestBtn">🧭 أقرب زبون</button><span id="nearestResult"></span></div>'
+    + '<div id="expMap"></div><div id="mapFallback"></div>'
+    + (withoutLoc.length ? '<h3>⚠️ زبائن بدون موقع مسجّل (' + withoutLoc.length + ')</h3><div class="nogps-note">هؤلاء الزبائن ليس لديهم إحداثيات GPS مسجّلة، لذلك لا يظهرون على الخريطة أعلاه.</div><table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th></tr>' + noGpsRows + '</table>' : '')
+    + '<h3>📋 القائمة الكاملة</h3>'
+    + '<table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الإحداثيات</th><th>الموقع</th></tr>'
+    + (withLoc.map(m=>'<tr><td>'+escH(m.meter||'')+'</td><td>'+escH(m.name||'')+'</td><td>'+escH(m.address||'')+'</td><td>'+Number(m.lat).toFixed(6)+', '+Number(m.lng).toFixed(6)+'</td><td><a class="pin" href="https://www.google.com/maps?q='+encodeURIComponent(m.lat+','+m.lng)+'" target="_blank" rel="noopener">📍 فتح الخريطة</a></td></tr>').join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888;">لا توجد مواقع مسجّلة</td></tr>')
+    + '</table>'
+    + '</div>'
+    + '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>'
+    + '<script>' + script + '<\/script>'
+    + '</body></html>';
 }
 function buildRouteReportHtml(){
   const st = getRouteStats();
@@ -2309,11 +2387,11 @@ function buildRouteReportHtml(){
   const rows = meters.map((m,i)=>{
     const status = m.status==='done'?'مرفوعة':(m.status==='anom'?'إشارة':'معلّقة');
     const map = (m.lat&&m.lng) ? `<a href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank">📍 فتح</a>` : '—';
-    const sig=m.signatureData?'✍️ نعم':'—'; return `<tr><td>${i+1}</td><td>${escH(m.meter)}</td><td>${escH(m.name)}</td><td>${escH(m.meterSerial||'—')}</td><td>${escH(m.address||'—')}</td><td>${m.newIndex!=null?escH(m.newIndex):'—'}</td><td>${m.status==='done'?escH(m.consumption):'—'}</td><td>${escH(status)}</td><td>${map}</td><td>${sig}</td></tr>`;
+    const sig=m.signatureData?'✍️ نعم':'—'; return `<tr><td>${i+1}</td><td>${escH(m.meter)}</td><td>${escH(m.name)}</td><td>${escH(m.meterSerial||'—')}</td><td>${escH(m.address||'—')}</td><td>${m.newIndex!=null?escH(m.newIndex):'—'}</td><td>${hasReading(m)?escH(m.consumption):'—'}</td><td>${escH(status)}</td><td>${map}</td><td>${sig}</td></tr>`;
   }).join('');
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير الجولة ${route}</title><style>
 @page{size:A4;margin:12mm}body{font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#222;margin:0;padding:16px}.report{max-width:1100px;margin:auto;background:#fff;padding:22px;border-radius:12px;box-shadow:0 2px 12px #0001}h1{margin:0 0 5px;color:#1565c0;font-size:25px}h2{font-size:17px;margin:22px 0 10px;color:#1565c0}.meta{color:#666;font-size:12px;line-height:1.8}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:16px}.card{border:1px solid #ddd;border-radius:9px;padding:12px;text-align:center}.num{font-size:22px;font-weight:800;color:#1565c0}.lbl{font-size:11px;color:#666;margin-top:4px}.bar{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin-top:12px}.bar>span{display:block;height:100%;background:#1565c0;width:${st.progress}%}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#1565c0;color:white;padding:8px}td{padding:7px;border-bottom:1px solid #eee;text-align:right}a{color:#1565c0;font-weight:bold;text-decoration:none}.actions{position:sticky;top:0;background:#fff;padding-bottom:10px;display:flex;gap:8px}.actions button{border:0;border-radius:8px;padding:10px 14px;background:#1565c0;color:#fff;font-weight:bold}@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}table{font-size:9px}.report{padding:12px}}@media print{body{background:#fff;padding:0}.report{box-shadow:none;padding:0}.actions{display:none}.card{break-inside:avoid}}
-</style></head><body><div class="report"><div class="actions"><button onclick="window.print()">🖨️ طباعة</button><button onclick="window.close()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(m.status==='done'?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(m=>m.status==='done').sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div>
+</style></head><body><div class="report"><div class="actions"><button onclick="window.print()">🖨️ طباعة</button><button onclick="window.close()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>🎯 لوحة إحصائيات الجولة</h2><div class="grid"><div class="card"><div class="num">${st.inh}</div><div class="lbl">🚫 عدد INH</div></div><div class="card"><div class="num">${st.zero}</div><div class="lbl">صفر استهلاك</div></div><div class="card"><div class="num">${st.high}</div><div class="lbl">استهلاك ضخم</div></div><div class="card"><div class="num">${st.leak}</div><div class="lbl">💧 تسربات FC</div></div><div class="card"><div class="num">${st.problems}</div><div class="lbl">⚠️ عدادات ذات مشاكل</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">📍 مواقع مسجلة</div></div><div class="card"><div class="num">${st.progress}%</div><div class="lbl">📊 نسبة الإنجاز</div></div></div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(hasReading(m)?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(hasReading).sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div>
 </body></html>`;
 }
 function showReportHtml(html){const viewer=document.getElementById('reportViewer'),frame=document.getElementById('reportFrame');if(!viewer||!frame){toast('تعذر فتح عارض التقرير');return false;}frame.srcdoc=html;viewer.style.display='block';document.body.style.overflow='hidden';return true;}
@@ -2337,7 +2415,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=24');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=27');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -2351,7 +2429,7 @@ try{toast('1/4 تجهيز Excel...');const rows=meters.map(m=>({'رمز الزب
 const ws=XLSX.utils.json_to_sheet(rows);const headers=Object.keys(rows[0]||{});ws['!cols']=headers.map(h=>{let ml=String(h).length;for(const r of rows)ml=Math.max(ml,String(r[h]??'').length);return{wch:Math.min(55,Math.max(10,ml+2))};});const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'القراءات');const xlsxOut=XLSX.write(wb,{type:'array',bookType:'xlsx'});const zip=new JSZip(),route=getRouteExportName();
 const heads=['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];const lines=[heads.join('\\t')];meters.forEach(m=>lines.push([m.meter,m.meterSerial||'',m.name||'',m.address||'',m.subType||'',m.phone||'',m.prevIndex??'',m.newIndex??'',m.consumption??'',m.amount??'',m.status||'',m.annot||'',m.lowReadingReason||'',(m.obs||'').replace(/\\t|\\n/g,' '),m.hasPhoto?'1':'0',m.savedAt||''].join('\\t')));zip.file(`${route}.txt`,'\\uFEFF'+lines.join('\\n'));zip.file('client.xlsx',xlsxOut);
 toast('2/4 إضافة الصور...');const photos=zip.folder('الصور');let photoCount=0;for(const m of meters){if(!m.hasPhoto)continue;try{const d=await Promise.race([sg('photo:'+m.id),new Promise(r=>setTimeout(()=>r(null),5000))]);if(d&&d.includes(',')){photos.file(`${m.meter||m.id}.jpg`,d.split(',')[1],{base64:true});photoCount++;}}catch(e){}}
-toast('3/4 إضافة المواقع والتقرير...');const locRows=meters.filter(m=>m.lat&&m.lng).map(m=>`<tr><td>${escH(m.meter||'')}</td><td>${escH(m.name||'')}</td><td>${escH(m.address||'')}</td><td>${Number(m.lat).toFixed(6)}, ${Number(m.lng).toFixed(6)}</td><td><a class="pin" href="https://www.google.com/maps?q=${encodeURIComponent(m.lat+','+m.lng)}" target="_blank" rel="noopener">📍 فتح الخريطة</a></td></tr>`).join('');zip.file('المواقع.html',`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>مواقع الزبائن</title><style>body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#f4f6f8;margin:0;padding:20px;color:#1a1a1a;}h2{color:#1565c0;margin:0 0 16px;}table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);}th{background:#1565c0;color:#fff;padding:12px 10px;font-size:13px;text-align:right;}td{padding:11px 10px;border-top:1px solid #eee;font-size:13px;text-align:right;}tr:nth-child(even){background:#fafbfc;}a.pin{display:inline-block;padding:7px 14px;background:#1565c0;color:#fff;text-decoration:none;border-radius:7px;font-weight:700;font-size:12px;white-space:nowrap;}a.pin:hover{background:#0d47a1;}</style></head><body><h2>📍 مواقع الزبائن (${meters.filter(m=>m.lat&&m.lng).length})</h2><table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الإحداثيات</th><th>الموقع</th></tr>${locRows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:#888;">لا توجد مواقع مسجّلة</td></tr>'}</table></body></html>`);zip.file('تقرير الجولة.html',buildRouteReportHtml());
+toast('3/4 إضافة المواقع والتقرير...');zip.file('المواقع.html',buildLocationsReportHtml());zip.file('تقرير الجولة.html',buildRouteReportHtml());
 toast('4/4 ضغط الملف...');const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6},streamFiles:true},meta=>{if(meta&&meta.percent)toast(`4/4 ضغط الملف ${Math.round(meta.percent)}%...`);});await saveExportToCliente(blob,`${route}.zip`);toast(`✅ تم تصدير ZIP: ${route} (${photoCount} صورة)`);return true;
 }catch(err){console.error(err);toast('❌ فشل تصدير ZIP: '+(err&&err.message?err.message:'خطأ غير معروف'));return false;}}
 
@@ -2403,7 +2481,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=24').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=27').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
