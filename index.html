@@ -254,8 +254,8 @@ main{flex:1;overflow-y:auto;}
 .quick-actions-bar{display:flex;gap:8px;padding:9px 14px 0;}
 .btn-quick{
   flex:1;background:var(--surface);border:1.5px solid var(--line);border-radius:8px;
-  font-family:'Tajawal',sans-serif;font-size:13px;font-weight:700;color:var(--ink);
-  padding:11px 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+  font-family:'Tajawal',sans-serif;font-size:11.5px;font-weight:700;color:var(--ink);
+  padding:10px 4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;text-align:center;
 }
 body.dark .bottom-action-wrap{background:var(--card);}
 
@@ -430,6 +430,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3"><path d="M9 6l6 6-6 6"/></svg>
     </div>
     <div class="title" id="topTitle">قراءات العدادات - Said</div>
+    <span id="connIndicator" title="حالة الاتصال" style="width:9px;height:9px;border-radius:50%;background:#4CAF50;flex-shrink:0;box-shadow:0 0 0 2px rgba(255,255,255,.35);"></span>
     <div class="badge" id="topBadge">الرئيسية</div>
   </div>
 
@@ -541,6 +542,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
     <div id="tab-archive" class="view">
       <div style="padding:14px 14px 4px;font-size:16px;font-weight:900;">🗂️ أرشيف الجولات</div>
       <div style="padding:0 14px 8px;font-size:11.5px;color:var(--muted);">كل جولة مكتملة محفوظة هنا للمراجعة وإعادة فتح التقرير.</div>
+      <div id="performanceStats" style="margin:0 14px 12px;"></div>
       <div id="archiveList"></div>
     </div>
 
@@ -549,7 +551,10 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
       <div class="route-map-card">
         <div class="route-map-toolbar">
           <span class="route-map-title">🗺️ خريطة الجولة</span>
-          <button class="btn-ghost" onclick="findNearestCustomer()" style="padding:7px 12px;font-size:12px;">🧭 أقرب زبون</button>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-ghost" onclick="sortRouteByNearest()" style="padding:7px 10px;font-size:11.5px;">🔃 ترتيب حسب الأقرب</button>
+            <button class="btn-ghost" onclick="findNearestCustomer()" style="padding:7px 12px;font-size:12px;">🧭 أقرب زبون</button>
+          </div>
         </div>
         <div id="routeMapCanvas" class="route-map-canvas">
           <div class="route-map-placeholder" id="routeMapPlaceholder">جارٍ تحميل الخريطة...</div>
@@ -590,6 +595,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
           </div>
         </div>
         <div id="locBtnHeader" style="margin-top:8px;"></div>
+        <div id="meterInsights" style="margin-top:8px;"></div>
       </div>
 
       <div class="form-section">
@@ -654,6 +660,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
         <div class="quick-actions-bar" id="quickActionsBar">
           <button type="button" class="btn-quick" onclick="quickScanCode()">📷 مسح الكود</button>
           <button type="button" class="btn-quick" onclick="quickSignature()">✍️ توقيع الزبون</button>
+          <button type="button" class="btn-quick" onclick="printReceiptViaBluetooth()" title="ميزة تجريبية — التوافق يختلف حسب طراز الطابعة">🖨️ إيصال Bluetooth</button>
         </div>
         <div class="save-bar" id="saveBar">
           <button class="btn-skip" onclick="skipMeter()">تخطّي</button>
@@ -728,10 +735,11 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
       <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;">
         تصدير الجولة الكاملة ينشئ مجلد الجولة داخل ADE ويضع فيه TXT وZIP. داخل ZIP توجد القراءة Excel، الصور، المواقع، و<strong>تقرير الجولة القابل للعرض والطباعة</strong>.
       </p>
-      <button class="btn-prim" onclick="exportCompleteRound()" style="width:100%;padding:12px;">📦 تصدير الجولة كاملة</button>
+      <button class="btn-prim" onclick="startExportCompleteRound()" style="width:100%;padding:12px;">📦 تصدير الجولة كاملة</button>
       <h3 class="mc-toggle" onclick="toggleManageCard('mc-export-extra',this)" style="margin-top:12px;font-size:12.5px;"><span class="mc-title">خيارات تصدير إضافية</span><span class="mc-arrow">▼</span></h3>
       <div class="mc-body" id="mc-export-extra">
         <button class="btn-ghost" onclick="openRouteReport()" style="width:100%;padding:12px;margin-bottom:8px;">📋 الاطلاع على التقرير</button>
+        <button class="btn-ghost" onclick="exportReportAsPDF()" style="width:100%;padding:12px;margin-bottom:8px;">🖨️ تصدير PDF (عبر الطباعة)</button>
         <button class="btn-ghost" onclick="exportTXT()" style="width:100%;padding:12px;margin-bottom:8px;">تصدير TXT للجولة فقط</button>
         <button class="btn-ghost" onclick="exportResultsZip()" style="width:100%;padding:12px;margin-bottom:8px;">تصدير ZIP للجولة فقط</button>
         <button class="btn-ghost" onclick="resetAdeStorageFolder()" style="width:100%;padding:12px;">🔄 إعادة تعيين مجلد الحفظ</button>
@@ -762,6 +770,10 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
         <button class="btn-ghost" onclick="document.getElementById('importFile').click()" style="width:100%;padding:12px;">استيراد JSON</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(this)">
         <button class="btn-ghost" style="width:100%;padding:12px;margin-top:8px;color:var(--danger);border-color:#FFCDD2;" onclick="confirmClear()">مسح جميع البيانات</button>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);">
+          <div style="font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:4px;">🕒 نسخ احتياطية تلقائية (آخر 7 أيام)</div>
+          <div id="autoBackupsList" style="font-size:11px;color:var(--muted);">جارٍ التحميل...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -824,6 +836,18 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
     </div>
     <div class="signature-box"><canvas id="signatureCanvas"></canvas><div class="signature-tools"><button type="button" class="btn-ghost" onclick="clearSignature()">مسح</button><button type="button" class="btn-prim" onclick="saveSignatureOnly()">حفظ التوقيع</button></div></div>
     <div class="btn-row" style="margin-top:9px;"><button class="btn-ghost" style="width:100%;" onclick="closeSignatureModal()">إغلاق</button></div>
+  </div>
+</div>
+<!-- Pre-export checklist -->
+<div class="overlay" id="preExportModal">
+  <div class="sheet" style="max-height:82vh;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🔎 مراجعة قبل تصدير الجولة</div>
+    <div id="preExportSummary" style="font-size:12.5px;line-height:2;color:var(--ink);"></div>
+    <div class="btn-row" style="margin-top:12px;display:flex;gap:8px;">
+      <button class="btn-ghost" style="flex:1;padding:12px;" onclick="closePreExportModal()">إلغاء</button>
+      <button class="btn-prim" style="flex:1;padding:12px;" onclick="confirmExportAfterChecklist()">متابعة التصدير</button>
+    </div>
   </div>
 </div>
 <!-- PIN -->
@@ -960,8 +984,19 @@ async function loadData(){
   try{ const rc = await sg('routeStatsCollapsed'); routeStatsCollapsed = rc ? JSON.parse(rc) : false; }catch(e){ routeStatsCollapsed = false; }
   applyRouteStatsCollapse();
   renderAll();
+  updateConnIndicator();
+  window.addEventListener('online', updateConnIndicator);
+  window.addEventListener('offline', updateConnIndicator);
+  autoBackupIfNeeded();
   setTimeout(()=>{const sp=document.getElementById('splash');if(sp){sp.style.opacity='0';setTimeout(()=>sp.remove(),400);}},700);
   setTimeout(showPinOverlay,750);
+}
+function updateConnIndicator(){
+  const el=document.getElementById('connIndicator');
+  if(!el) return;
+  const online = navigator.onLine!==false;
+  el.style.background = online ? '#4CAF50' : '#e53935';
+  el.title = online ? 'متصل بالإنترنت' : 'غير متصل — بعض الميزات (الخريطة، أقرب زبون) تحتاج إنترنت';
 }
 async function saveMeters(){ await ss('meters', JSON.stringify(meters)); }
 async function saveSettings3(){ await ss('settings', JSON.stringify(settings)); }
@@ -1231,7 +1266,39 @@ async function archiveCurrentRound(silent=false){
   const snap={id:'A'+Date.now(),route,createdAt:currentRoundCreatedAt||Date.now(),completedAt:Date.now(),settings:JSON.parse(JSON.stringify(settings)),meters:JSON.parse(JSON.stringify(meters)),stats:st};
   roundArchives.unshift(snap); if(roundArchives.length>50)roundArchives=roundArchives.slice(0,50); await ss('roundArchives',JSON.stringify(roundArchives)); if(!silent)toast('🗂️ تم حفظ الجولة في الأرشيف'); renderArchive();return snap;
 }
-function renderArchive(){const el=document.getElementById('archiveList');if(!el)return;if(!roundArchives.length){el.innerHTML='<div class="empty-state"><div class="ico">🗂️</div><p>لا توجد جولات سابقة بعد.</p></div>';return;}el.innerHTML=roundArchives.map(a=>`<div class="archive-card"><div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:15px;font-weight:900;color:var(--blue)">${escH(a.route)}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">${new Date(a.completedAt).toLocaleString('ar-DZ')}</div></div><span class="chip chip-done">${a.stats.done}/${a.stats.total} مرفوعة</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px"><div class="stat-box" style="padding:8px"><b>${a.stats.total}</b><div class="lbl">زبون</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.consumption}</b><div class="lbl">م³</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.anom}</b><div class="lbl">إشارات</div></div></div><div class="archive-actions"><button class="btn-prim" onclick="openArchivedReport('${a.id}')">📋 التقرير</button><button class="btn-ghost" onclick="restoreArchive('${a.id}')">♻️ استرجاع</button></div></div>`).join('');}
+function renderPerformanceStats(){
+  const el=document.getElementById('performanceStats');
+  if(!el) return;
+  if(roundArchives.length<1){ el.innerHTML=''; return; }
+  const durations = roundArchives
+    .filter(a=>a.completedAt && a.createdAt && a.completedAt>a.createdAt)
+    .map(a=>({route:a.route, ms:a.completedAt-a.createdAt, total:a.stats.total}));
+  const totalRounds = roundArchives.length;
+  const totalCustomers = roundArchives.reduce((s,a)=>s+(a.stats.total||0),0);
+  const totalConsumption = roundArchives.reduce((s,a)=>s+(a.stats.consumption||0),0);
+  let avgSpeedLabel='—';
+  if(durations.length){
+    const avgMsPerCustomer = durations.reduce((s,d)=>s+(d.total?d.ms/d.total:0),0)/durations.length;
+    const mins = avgMsPerCustomer/60000;
+    avgSpeedLabel = mins<1 ? Math.round(avgMsPerCustomer/1000)+' ث/زبون' : mins.toFixed(1)+' د/زبون';
+  }
+  let fastestLabel='—';
+  if(durations.length){
+    const fastest = durations.reduce((a,b)=> (a.total? a.ms/a.total : Infinity) < (b.total? b.ms/b.total : Infinity) ? a : b);
+    if(fastest.total){ const m=fastest.ms/fastest.total/60000; fastestLabel = escH(fastest.route)+' ('+(m<1?Math.round(fastest.ms/fastest.total/1000)+' ث/زبون':m.toFixed(1)+' د/زبون')+')'; }
+  }
+  el.innerHTML = `<div class="route-stats-panel" style="margin:0;">
+    <div class="rsp-head"><span class="rsp-title">📊 إحصائيات الأداء عبر الزمن</span></div>
+    <div class="route-stats-grid">
+      <div class="route-stat-box"><span class="val val-total">${totalRounds}</span><span class="lbl">🗂️ جولات مؤرشفة</span></div>
+      <div class="route-stat-box"><span class="val val-done">${totalCustomers}</span><span class="lbl">👥 إجمالي الزبائن</span></div>
+      <div class="route-stat-box"><span class="val val-total">${totalConsumption}</span><span class="lbl">💧 إجمالي الاستهلاك م³</span></div>
+      <div class="route-stat-box"><span class="val val-leak" style="font-size:14px;">${avgSpeedLabel}</span><span class="lbl">⏱️ متوسط سرعة الإنجاز</span></div>
+      <div class="route-stat-box" style="grid-column:span 2;"><span class="val val-done" style="font-size:13px;">${fastestLabel}</span><span class="lbl">🏆 أسرع جولة</span></div>
+    </div>
+  </div>`;
+}
+function renderArchive(){renderPerformanceStats();const el=document.getElementById('archiveList');if(!el)return;if(!roundArchives.length){el.innerHTML='<div class="empty-state"><div class="ico">🗂️</div><p>لا توجد جولات سابقة بعد.</p></div>';return;}el.innerHTML=roundArchives.map(a=>`<div class="archive-card"><div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:15px;font-weight:900;color:var(--blue)">${escH(a.route)}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">${new Date(a.completedAt).toLocaleString('ar-DZ')}</div></div><span class="chip chip-done">${a.stats.done}/${a.stats.total} مرفوعة</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px"><div class="stat-box" style="padding:8px"><b>${a.stats.total}</b><div class="lbl">زبون</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.consumption}</b><div class="lbl">م³</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.anom}</b><div class="lbl">إشارات</div></div></div><div class="archive-actions"><button class="btn-prim" onclick="openArchivedReport('${a.id}')">📋 التقرير</button><button class="btn-ghost" onclick="restoreArchive('${a.id}')">♻️ استرجاع</button></div></div>`).join('');}
 function openArchivedReport(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;const oldM=meters,oldS=settings;meters=a.meters;settings=a.settings;const html=buildRouteReportHtml();meters=oldM;settings=oldS;showReportHtml(html);}
 async function restoreArchive(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;if(!confirm('استرجاع هذه الجولة سيستبدل الجولة الحالية. هل تريد المتابعة؟'))return;meters=JSON.parse(JSON.stringify(a.meters));settings=Object.assign(settings,JSON.parse(JSON.stringify(a.settings)));await saveMeters();await saveSettings3();renderAll();toast('♻️ تم استرجاع الجولة');}
 async function archiveAndStartNewRound(){const a=await archiveCurrentRound(false);if(!a)return;meters=[];settings.routeNum='T00001';settings.currentRoundCreatedAt=Date.now();currentRoundCreatedAt=settings.currentRoundCreatedAt;await saveMeters();await saveSettings3();document.getElementById('mRouteNum').value=settings.routeNum;document.getElementById('topBadge').textContent=settings.routeNum;renderAll();toast('➕ تم فتح جولة جديدة');}
@@ -1311,6 +1378,45 @@ async function commitCustomerNationalId(){
   document.getElementById('dNationalId').textContent=m.nationalId||'—'; toast(m.nationalId?'تم حفظ رقم التعريف الوطني':'تم حذف رقم التعريف الوطني');
 }
 
+function getMeterHistory(meterCode){
+  // Look through archived rounds for this same customer (by code), most recent first.
+  // Purely additive read of existing roundArchives data — doesn't touch it.
+  const out=[];
+  roundArchives.forEach(a=>{
+    const found=(a.meters||[]).find(x=>x.meter===meterCode);
+    if(found) out.push({route:a.route, createdAt:a.createdAt, consumption: hasReading(found)?(Number(found.consumption)||0):null, annot: found.annot||''});
+  });
+  return out.sort((a,b)=>b.createdAt-a.createdAt);
+}
+function logMeterEditActivity(m, action){
+  if(!m.editLog) m.editLog=[];
+  m.editLog.push({at:Date.now(), action});
+  if(m.editLog.length>20) m.editLog=m.editLog.slice(-20);
+}
+function renderMeterInsights(m){
+  const el=document.getElementById('meterInsights');
+  if(!el) return;
+  const history=getMeterHistory(m.meter);
+  let html='';
+  const lastAnom=history.find(h=>h.annot);
+  if(lastAnom){
+    html+=`<div style="background:#fff3e0;border:1px solid #ffcc80;color:#e65100;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;margin-bottom:6px;">⚠️ كان لدى هذا الزبون إشارة "${escH(lastAnom.annot)}" في جولة ${escH(lastAnom.route)} (${new Date(lastAnom.createdAt).toLocaleDateString('ar-DZ')})</div>`;
+  }
+  const consHistory=history.filter(h=>h.consumption!=null).slice(0,6).reverse();
+  if(consHistory.length){
+    const max=Math.max(...consHistory.map(h=>h.consumption),1);
+    const bars=consHistory.map(h=>`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;"><div style="width:100%;max-width:18px;height:${Math.max(4,Math.round(h.consumption/max*36))}px;background:var(--blue);border-radius:3px;"></div><span style="font-size:8.5px;color:var(--muted);">${h.consumption}</span></div>`).join('');
+    html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">📈 الاستهلاك عبر الجولات السابقة (م³)</div>
+      <div style="display:flex;align-items:flex-end;gap:4px;">${bars}</div>
+    </div>`;
+  }
+  if(m.editLog && m.editLog.length){
+    const items=m.editLog.slice(-5).reverse().map(h=>`<div style="font-size:10.5px;color:var(--muted);padding:3px 0;border-top:1px solid var(--line);">🕒 ${new Date(h.at).toLocaleString('ar-DZ')} — ${escH(h.action)}</div>`).join('');
+    html+=`<details style="margin-top:2px;"><summary style="font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;">🕒 سجل التعديلات (${m.editLog.length})</summary>${items}</details>`;
+  }
+  el.innerHTML=html;
+}
 function openMeter(id){
   currentMeterId = id;
   const m = meters.find(x=>x.id===id);
@@ -1380,6 +1486,7 @@ function openMeter(id){
   formSnapshotAtOpen = currentFormSnapshot();
   // show GPS button if already captured
   setTimeout(()=> { renderLocationBtn(m); if(!m.lat || !m.lng){ const st=document.getElementById('gpsStatus'); if(st) st.textContent='📍 لم يتم تسجيل الموقع بعد'; } }, 100);
+  renderMeterInsights(m);
 }
 
 function selectAnnot(code, el){
@@ -1490,7 +1597,7 @@ async function chooseLowReadingReason(reason){
 /* ===== SIGNATURE ===== */
 function setupSignatureCanvas(dataUrl){const c=document.getElementById('signatureCanvas');if(!c)return;const rect=c.getBoundingClientRect(),dpr=window.devicePixelRatio||1;c.width=rect.width*dpr;c.height=150*dpr;const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,rect.width,150);ctx.lineWidth=2;ctx.lineCap='round';ctx.strokeStyle='#1f2937';let drawing=false;const pos=e=>{const r=c.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}};c.onpointerdown=e=>{drawing=true;c.setPointerCapture(e.pointerId);const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);signatureDirty=true};c.onpointermove=e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke()};c.onpointerup=()=>drawing=false;c.onpointercancel=()=>drawing=false;if(dataUrl){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0,rect.width,150);img.src=dataUrl;}document.getElementById('signatureState').textContent=dataUrl?'محفوظ':'اختياري';}
 function clearSignature(){const c=document.getElementById('signatureCanvas');if(!c)return;const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);signatureDirty=true;document.getElementById('signatureState').textContent='تم المسح';}
-async function saveSignatureOnly(){const m=meters.find(x=>x.id===currentMeterId),c=document.getElementById('signatureCanvas');if(!m||!c)return;m.signatureData=c.toDataURL('image/png');signatureDirty=false;await saveMeters();document.getElementById('signatureState').textContent='محفوظ';toast('✍️ تم حفظ التوقيع');setTimeout(closeSignatureModal,500);}
+async function saveSignatureOnly(){const m=meters.find(x=>x.id===currentMeterId),c=document.getElementById('signatureCanvas');if(!m||!c)return;m.signatureData=c.toDataURL('image/png');signatureDirty=false;await saveMeters();document.getElementById('signatureState').textContent='محفوظ';toast('✍️ تم حفظ التوقيع');logMeterEditActivity(m,'حفظ توقيع الزبون');setTimeout(closeSignatureModal,500);}
 
 /* ===== BARCODE / QR ===== */
 async function openBarcodeScanner(){const modal=document.getElementById('barcodeModal');modal.classList.add('show');await restartBarcodeScanner();}
@@ -1542,6 +1649,7 @@ async function saveReleve(){
   m.history = Array.isArray(m.history)?m.history:[];
   m.consumptionHistory = Array.isArray(m.consumptionHistory)?m.consumptionHistory:[];
   if(!isNaN(val)){ m.history.push(val); m.consumptionHistory.push(Number(m.consumption)||0); }
+  logMeterEditActivity(m, hasSignal ? `تسجيل إشارة (${m.annot})${!isNaN(val)?' مع قراءة '+val:''}` : `حفظ قراءة ${val} (استهلاك ${m.consumption} م³)`);
   if(signatureDirty){ const sig=document.getElementById('signatureCanvas'); if(sig){ m.signatureData=sig.toDataURL('image/png'); signatureDirty=false; } }
   await saveMeters();
   renderAll();
@@ -1570,6 +1678,99 @@ function quickSignature(){
 function closeSignatureModal(){
   const modal=document.getElementById('signatureModal');
   if(modal) modal.classList.remove('show');
+}
+
+/* ====== BLUETOOTH RECEIPT PRINTER (experimental) ======
+   Web Bluetooth + a generic ESC/POS write. There is no single standard among
+   cheap thermal printers (service/characteristic UUIDs vary by brand), so this
+   tries a few of the most commonly seen ones. Also: most cheap ESC/POS printers
+   cannot render Arabic/UTF-8 text correctly (they use single-byte codepages),
+   so the receipt is printed in Latin/numeric form to maximize the chance it
+   actually prints legibly, rather than risking garbled Arabic on most hardware. */
+let btPrinterDevice=null, btPrinterChar=null;
+const BT_PRINTER_SERVICE_CANDIDATES=[
+  '000018f0-0000-1000-8000-00805f9b34fb',
+  '0000ffe0-0000-1000-8000-00805f9b34fb',
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455'
+];
+async function connectBluetoothPrinter(){
+  if(!navigator.bluetooth){ toast('❌ هذا المتصفح لا يدعم Web Bluetooth (جرّب Chrome على أندرويد)'); return false; }
+  try{
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices:true,
+      optionalServices:BT_PRINTER_SERVICE_CANDIDATES
+    });
+    const server = await device.gatt.connect();
+    let char=null;
+    for(const svcId of BT_PRINTER_SERVICE_CANDIDATES){
+      try{
+        const svc = await server.getPrimaryService(svcId);
+        const chars = await svc.getCharacteristics();
+        char = chars.find(c=>c.properties.write || c.properties.writeWithoutResponse) || null;
+        if(char) break;
+      }catch(e){ /* this printer doesn't expose this candidate service — try the next one */ }
+    }
+    if(!char){ toast('❌ تعذر العثور على قناة طباعة متوافقة على هذا الجهاز (طرازات الطابعات تختلف كثيراً)'); return false; }
+    btPrinterDevice=device; btPrinterChar=char;
+    device.addEventListener('gattserverdisconnected', ()=>{ btPrinterChar=null; });
+    toast('✅ تم الاتصال بالطابعة: '+(device.name||'جهاز غير معروف'));
+    return true;
+  }catch(e){
+    if(e && e.name==='NotFoundError'){ toast('تم إلغاء اختيار الطابعة'); return false; }
+    console.error('Bluetooth printer connect failed', e);
+    toast('❌ تعذر الاتصال بالطابعة (ميزة تجريبية، التوافق يختلف حسب طراز الطابعة)');
+    return false;
+  }
+}
+async function writeToPrinter(bytes){
+  if(!btPrinterChar) return false;
+  const chunkSize=180; // conservative BLE write-size limit across devices
+  for(let i=0;i<bytes.length;i+=chunkSize){
+    const chunk=bytes.slice(i,i+chunkSize);
+    if(btPrinterChar.properties.writeWithoutResponse) await btPrinterChar.writeValueWithoutResponse(chunk);
+    else await btPrinterChar.writeValue(chunk);
+  }
+  return true;
+}
+function buildReceiptBytes(m){
+  const enc=new TextEncoder();
+  const money=(m.amount!=null)?Number(m.amount).toFixed(2):'0.00';
+  const lines=[
+    'ADE - Meter Reading Receipt',
+    '--------------------------------',
+    'Route: '+(settings.routeNum||''),
+    'Customer code: '+(m.meter||''),
+    'Name: '+(m.name||''),
+    'Serial: '+(m.meterSerial||'-'),
+    'Prev index: '+(m.prevIndex??'-'),
+    'New index: '+(hasReading(m)?m.newIndex:'-'),
+    'Consumption: '+(hasReading(m)?m.consumption:'-')+' m3',
+    'Amount: '+money+' DA',
+    'Date: '+new Date().toLocaleString('fr-DZ'),
+    '--------------------------------',
+    'Thank you / Merci'
+  ];
+  const textBlock=lines.join('\n')+'\n\n\n';
+  const ESC=0x1B, GS=0x1D;
+  const init=[ESC,0x40];            // ESC @  — initialize printer
+  const cut=[GS,0x56,0x42,0x00];    // GS V B 0 — partial cut (ignored by printers that don't support it)
+  return new Uint8Array([...init, ...Array.from(enc.encode(textBlock)), ...cut]);
+}
+async function printReceiptViaBluetooth(){
+  const m=meters.find(x=>x.id===currentMeterId);
+  if(!m){ toast('افتح ملف زبون أولاً'); return; }
+  if(!btPrinterChar){
+    const ok=await connectBluetoothPrinter();
+    if(!ok) return;
+  }
+  try{
+    await writeToPrinter(buildReceiptBytes(m));
+    toast('✅ تم إرسال الإيصال للطابعة (ميزة تجريبية)');
+  }catch(e){
+    console.error('Bluetooth print failed', e);
+    toast('❌ فشل الإرسال للطابعة. أعد المحاولة أو تحقق من اتصال الطابعة.');
+    btPrinterChar=null;
+  }
 }
 
 async function skipMeter(){
@@ -1679,6 +1880,7 @@ function manualCaptureGPS(){
         m.lng = pos.coords.longitude;
         m.locAccuracy = accuracy;
         await saveMeters();
+        logMeterEditActivity(m, `تسجيل موقع GPS (±${accuracy}م)`);
         renderMapList();
         if(accuracy > 50){
           if(statusEl) statusEl.innerHTML = `⚠️ دقة ضعيفة (±${accuracy}م) — <b style="color:var(--accent)">جرّب مرة ثانية في الهواء الطلق</b>`;
@@ -1890,6 +2092,38 @@ function findNearestCustomer(){
         if(Math.abs(ll.lat-Number(best.lat))<1e-9 && Math.abs(ll.lng-Number(best.lng))<1e-9) lyr.openPopup();
       });
     }
+  }, ()=>{
+    toast('❌ تعذر تحديد موقعك الحالي. تأكد من تفعيل GPS والصلاحيات.');
+  }, { enableHighAccuracy:true, timeout:12000, maximumAge:0 });
+}
+function sortRouteByNearest(){
+  if(!navigator.geolocation){ toast('❌ الموقع الجغرافي غير مدعوم على هذا الجهاز'); return; }
+  const pendingWithGps = meters.filter(m=>m.lat && m.lng && m.status!=='done' && m.status!=='anom');
+  if(pendingWithGps.length<2){ toast('❌ يحتاج ترتيب المسار زبونين متبقيين على الأقل بموقع GPS مسجّل'); return; }
+  toast('📡 يتم تحديد موقعك لترتيب المسار...');
+  navigator.geolocation.getCurrentPosition((pos)=>{
+    let curLat=pos.coords.latitude, curLng=pos.coords.longitude;
+    const remaining = pendingWithGps.slice();
+    const ordered = [];
+    while(remaining.length){
+      let bestIdx=0, bestDist=Infinity;
+      remaining.forEach((m,i)=>{
+        const d=haversineMeters(curLat,curLng,Number(m.lat),Number(m.lng));
+        if(d<bestDist){ bestDist=d; bestIdx=i; }
+      });
+      const next=remaining.splice(bestIdx,1)[0];
+      ordered.push(next);
+      curLat=Number(next.lat); curLng=Number(next.lng);
+    }
+    // Rebuild the full meters array: the newly nearest-first-ordered pending/GPS
+    // meters first, then everything else in its original relative order — nothing
+    // removed, nothing lost, just the visiting order of this subset changed.
+    const orderedIds = new Set(ordered.map(m=>m.id));
+    const rest = meters.filter(m=>!orderedIds.has(m.id));
+    meters = [...ordered, ...rest];
+    saveMeters();
+    renderAll();
+    toast(`✅ تم ترتيب ${ordered.length} عداد متبقٍ حسب الأقرب لموقعك الحالي`);
   }, ()=>{
     toast('❌ تعذر تحديد موقعك الحالي. تأكد من تفعيل GPS والصلاحيات.');
   }, { enableHighAccuracy:true, timeout:12000, maximumAge:0 });
@@ -2473,6 +2707,16 @@ function showReportHtml(html){const viewer=document.getElementById('reportViewer
 function closeReportViewer(){const v=document.getElementById('reportViewer');if(v)v.style.display='none';document.body.style.overflow='';const f=document.getElementById('reportFrame');if(f)f.srcdoc='';}
 function printReportViewer(){const f=document.getElementById('reportFrame');if(f&&f.contentWindow){f.contentWindow.focus();f.contentWindow.print();}}
 function openRouteReport(){if(!meters.length){toast('لا توجد بيانات لإنشاء التقرير');return;}showReportHtml(buildRouteReportHtml());}
+function exportReportAsPDF(){
+  if(!meters.length){ toast('لا توجد بيانات لإنشاء التقرير'); return; }
+  // No PDF library is bundled with the app, so this uses the browser's own,
+  // dependency-free "Save as PDF" print destination — the standard, reliable
+  // way to get a real PDF file on Android Chrome without adding a heavy library.
+  const opened = showReportHtml(buildRouteReportHtml());
+  if(!opened) return;
+  toast('🖨️ اختر "حفظ كـ PDF" من قائمة الطابعات في نافذة الطباعة');
+  setTimeout(printReportViewer, 400);
+}
 function printRouteReport(){if(!meters.length){toast('لا توجد بيانات لإنشاء التقرير');return;}if(showReportHtml(buildRouteReportHtml()))setTimeout(printReportViewer,400);}
 async function exportCompleteRound(){
   if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
@@ -2483,6 +2727,30 @@ async function exportCompleteRound(){
   await exportTXT();
   toast(`✅ تم تصدير الجولة كاملة: ${getRouteExportName()}`);
 }
+function startExportCompleteRound(){
+  if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
+  const pending = meters.filter(m=>m.status!=='done'&&m.status!=='anom').length;
+  const noPhoto = meters.filter(m=>!m.hasPhoto).length;
+  const noGps = meters.filter(m=>!(m.lat&&m.lng)).length;
+  const readMeters = meters.filter(hasReading);
+  const cons = readMeters.map(m=>Number(m.consumption)||0);
+  const avg = cons.length ? cons.reduce((a,b)=>a+b,0)/cons.length : 0;
+  const thr = Math.max(avg*3, avg+30, 50);
+  const highCount = readMeters.filter(m=>(Number(m.consumption)||0)>thr).length;
+  const items=[
+    {ok:pending===0, label:`عدادات معلّقة لم تُقرأ بعد: ${pending}`},
+    {ok:noPhoto===0, label:`عدادات بدون صورة: ${noPhoto}`},
+    {ok:noGps===0, label:`عدادات بدون موقع GPS: ${noGps}`},
+    {ok:highCount===0, label:`قراءات استهلاك مرتفع بشكل غير معتاد لم تُراجع: ${highCount}`}
+  ];
+  const allOk = items.every(i=>i.ok);
+  const html = items.map(it=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;"><span>${it.ok?'✅':'⚠️'}</span><span>${it.label}</span></div>`).join('')
+    + (allOk ? '<div style="margin-top:8px;color:var(--success);font-weight:700;">كل شيء يبدو جاهزاً 👍</div>' : '<div style="margin-top:8px;color:var(--muted);">يمكنك المتابعة رغم ذلك إذا كنت متأكداً من الأسباب.</div>');
+  const el=document.getElementById('preExportSummary'); if(el) el.innerHTML=html;
+  const modal=document.getElementById('preExportModal'); if(modal) modal.classList.add('show');
+}
+function closePreExportModal(){ const m=document.getElementById('preExportModal'); if(m) m.classList.remove('show'); }
+async function confirmExportAfterChecklist(){ closePreExportModal(); await exportCompleteRound(); }
 
 /* ====== EXPORT RESULTS (Excel + Photos ZIP) ====== */
 function loadScriptOnce(url){return new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=url;sc.onload=resolve;sc.onerror=()=>reject(new Error('load failed: '+url));document.head.appendChild(sc);});}
@@ -2490,7 +2758,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=29');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=30');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -2509,6 +2777,44 @@ toast('4/4 ضغط الملف...');const blob=await zip.generateAsync({type:'blob
 }catch(err){console.error(err);toast('❌ فشل تصدير ZIP: '+(err&&err.message?err.message:'خطأ غير معروف'));return false;}}
 
 /* ====== EXPORT / IMPORT (JSON backup) ====== */
+async function autoBackupIfNeeded(){
+  try{
+    const raw = await sg('autoBackups');
+    let backups = raw ? JSON.parse(raw) : [];
+    const today = new Date().toISOString().slice(0,10);
+    if(!meters.length){ loadAutoBackupsList(); return; }
+    if(backups.length && backups[0].date===today){ loadAutoBackupsList(); return; }
+    backups.unshift({date:today, at:Date.now(), route:settings.routeNum, meters:JSON.parse(JSON.stringify(meters)), settings:JSON.parse(JSON.stringify(settings))});
+    if(backups.length>7) backups=backups.slice(0,7);
+    await ss('autoBackups', JSON.stringify(backups));
+  }catch(e){ console.warn('autoBackupIfNeeded failed', e); }
+  loadAutoBackupsList();
+}
+async function loadAutoBackupsList(){
+  const el=document.getElementById('autoBackupsList');
+  if(!el) return;
+  try{
+    const raw=await sg('autoBackups');
+    const backups = raw?JSON.parse(raw):[];
+    if(!backups.length){ el.innerHTML='لا توجد نسخ تلقائية بعد.'; return; }
+    el.innerHTML = backups.map((b,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--line);">
+      <span>${escH(b.date)} — ${escH(b.route)} (${b.meters.length} زبون)</span>
+      <button class="btn-ghost" style="padding:5px 10px;font-size:10.5px;" onclick="restoreAutoBackup(${i})">♻️ استرجاع</button>
+    </div>`).join('');
+  }catch(e){ el.innerHTML='تعذر تحميل النسخ الاحتياطية.'; }
+}
+async function restoreAutoBackup(idx){
+  if(!confirm('استرجاع هذه النسخة سيستبدل بيانات الجولة الحالية. متابعة؟')) return;
+  try{
+    const raw=await sg('autoBackups');
+    const backups=raw?JSON.parse(raw):[];
+    const b=backups[idx]; if(!b) return;
+    meters=JSON.parse(JSON.stringify(b.meters));
+    settings=Object.assign(settings, JSON.parse(JSON.stringify(b.settings)));
+    await saveMeters(); await saveSettings3(); renderAll();
+    toast('♻️ تم استرجاع النسخة الاحتياطية');
+  }catch(e){ toast('تعذر الاسترجاع'); }
+}
 function exportJSON(){
   const blob=new Blob([JSON.stringify({meters,settings},null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
@@ -2556,7 +2862,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=29').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=30').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
