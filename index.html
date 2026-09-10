@@ -551,7 +551,8 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
       <div class="route-map-card">
         <div class="route-map-toolbar">
           <span class="route-map-title">🗺️ خريطة الجولة</span>
-          <div style="display:flex;gap:6px;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="btn-ghost" onclick="toggleMapHeatmode(this)" style="padding:7px 10px;font-size:11.5px;">🌡️ خريطة حرارية</button>
             <button class="btn-ghost" onclick="sortRouteByNearest()" style="padding:7px 10px;font-size:11.5px;">🔃 ترتيب حسب الأقرب</button>
             <button class="btn-ghost" onclick="findNearestCustomer()" style="padding:7px 12px;font-size:12px;">🧭 أقرب زبون</button>
           </div>
@@ -621,7 +622,10 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
             <span>القراءة الجديدة (م³)</span>
             <span>القراءة السابقة: <span class="prev-val" id="dPrevIndex">0</span></span>
           </div>
-          <input class="big-input" id="newIndexInput" type="number" inputmode="numeric" placeholder="00000" oninput="previewCons()">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="big-input" id="newIndexInput" type="number" inputmode="numeric" placeholder="00000" oninput="previewCons()" style="flex:1;">
+            <button type="button" id="voiceReadingBtn" onclick="startVoiceReading()" title="أدخل القراءة بالصوت" style="flex-shrink:0;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;">🎤</button>
+          </div>
           <div class="cons-preview">
             <div class="cp"><b id="previewCons">0</b><span>الاستهلاك م³</span></div>
             <div class="cp"><b id="previewAmt">0</b><span>المبلغ <span class="cur2"></span></span></div>
@@ -636,7 +640,10 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
         </div>
         <div class="form-row">
           <div class="form-label">ملاحظة</div>
-          <input class="std-input" id="obsInput" type="text" placeholder="أدخل ملاحظة إن وجدت...">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="std-input" id="obsInput" type="text" placeholder="أدخل ملاحظة إن وجدت..." style="flex:1;">
+            <button type="button" id="voiceNoteBtn" onclick="startVoiceNote()" title="أدخل الملاحظة بالصوت" style="flex-shrink:0;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">🎤</button>
+          </div>
         </div>
       </div>
 
@@ -760,6 +767,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
           <button class="tool-btn" onclick="toggleDarkMode()">🌙 الوضع الليلي</button>
           <button class="tool-btn" onclick="setupPin()">🔐 إعداد PIN</button>
           <button class="tool-btn" onclick="disablePin()">🔓 إلغاء PIN</button>
+          <button class="tool-btn" id="wakeLockBtn" onclick="toggleWakeLock()">🔆 منع إغلاق الشاشة</button>
         </div>
       </div>
     </div>
@@ -982,6 +990,8 @@ async function loadData(){
   document.getElementById('topBadge').textContent = settings.routeNum;
   const agencyWorkerEl=document.getElementById('agencyWorkerLine'); if(agencyWorkerEl) agencyWorkerEl.textContent=settings.worker||'BENAMMAR Said';
   try{ const rc = await sg('routeStatsCollapsed'); routeStatsCollapsed = rc ? JSON.parse(rc) : false; }catch(e){ routeStatsCollapsed = false; }
+  try{ const wl = await sg('wakeLockEnabled'); wakeLockEnabled = wl ? JSON.parse(wl) : false; }catch(e){ wakeLockEnabled = false; }
+  if(wakeLockEnabled){ await acquireWakeLock(); const wlBtn=document.getElementById('wakeLockBtn'); if(wlBtn) wlBtn.style.background='#E8F5E9'; }
   applyRouteStatsCollapse();
   renderAll();
   updateConnIndicator();
@@ -998,6 +1008,41 @@ function updateConnIndicator(){
   el.style.background = online ? '#4CAF50' : '#e53935';
   el.title = online ? 'متصل بالإنترنت' : 'غير متصل — بعض الميزات (الخريطة، أقرب زبون) تحتاج إنترنت';
 }
+/* ====== WAKE LOCK (keep screen on while working) ====== */
+let wakeLockObj=null, wakeLockEnabled=false;
+async function acquireWakeLock(){
+  try{
+    if('wakeLock' in navigator){
+      wakeLockObj = await navigator.wakeLock.request('screen');
+      wakeLockObj.addEventListener('release', ()=>{ wakeLockObj=null; });
+      return true;
+    }
+  }catch(e){ console.warn('wakeLock request failed', e); }
+  return false;
+}
+async function toggleWakeLock(){
+  const btn=document.getElementById('wakeLockBtn');
+  if(!('wakeLock' in navigator)){ toast('❌ هذا المتصفح لا يدعم منع إغلاق الشاشة'); return; }
+  wakeLockEnabled = !wakeLockEnabled;
+  ss('wakeLockEnabled', JSON.stringify(wakeLockEnabled));
+  if(wakeLockEnabled){
+    const ok = await acquireWakeLock();
+    if(ok){ if(btn) btn.style.background='#E8F5E9'; toast('🔆 الشاشة لن تُغلق تلقائياً أثناء استعمال التطبيق'); }
+    else { wakeLockEnabled=false; toast('❌ تعذّر تفعيل منع إغلاق الشاشة'); }
+  }else{
+    if(wakeLockObj){ try{ await wakeLockObj.release(); }catch(e){} wakeLockObj=null; }
+    if(btn) btn.style.background='';
+    toast('تم إلغاء منع إغلاق الشاشة');
+  }
+}
+document.addEventListener('visibilitychange', async ()=>{
+  // The OS/browser releases the wake lock whenever the tab is hidden (e.g. the
+  // worker briefly switches to another app) — re-acquire it automatically when
+  // they come back, as long as the feature is still turned on.
+  if(document.visibilityState==='visible' && wakeLockEnabled && !wakeLockObj){
+    await acquireWakeLock();
+  }
+});
 async function saveMeters(){ await ss('meters', JSON.stringify(meters)); }
 async function saveSettings3(){ await ss('settings', JSON.stringify(settings)); }
 
@@ -1424,6 +1469,8 @@ function openMeter(id){
   selectedAnnots = normalizeAnnotList(m.annot);
   const oldOcr = document.getElementById('ocrStatus');
   if(oldOcr) oldOcr.remove();
+  const oldOcrBtn = document.getElementById('ocrTriggerBtn');
+  if(oldOcrBtn) oldOcrBtn.remove();
   const oldLoc = document.getElementById('locBtn');
   if(oldLoc) oldLoc.remove();
 
@@ -1487,6 +1534,11 @@ function openMeter(id){
   // show GPS button if already captured
   setTimeout(()=> { renderLocationBtn(m); if(!m.lat || !m.lng){ const st=document.getElementById('gpsStatus'); if(st) st.textContent='📍 لم يتم تسجيل الموقع بعد'; } }, 100);
   renderMeterInsights(m);
+  // Auto-focus the reading field for faster entry — only when it's still empty,
+  // so reopening an already-completed meter doesn't unexpectedly pop the keyboard.
+  if(!m.newIndex){
+    setTimeout(()=>{ const inp=document.getElementById('newIndexInput'); if(inp && document.getElementById('view-releve').classList.contains('active')) inp.focus(); }, 250);
+  }
 }
 
 function selectAnnot(code, el){
@@ -1666,6 +1718,76 @@ async function saveReleve(){
 }
 
 function quickScanCode(){ openBarcodeScanner(); }
+/* ====== VOICE NOTE (Web Speech API) ====== */
+let voiceRecognition=null, voiceListening=false;
+function startVoiceNote(){
+  const btn=document.getElementById('voiceNoteBtn');
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRec){ toast('❌ الإدخال الصوتي غير مدعوم في هذا المتصفح'); return; }
+  if(voiceListening && voiceRecognition){ voiceRecognition.stop(); return; }
+  try{
+    voiceRecognition = new SpeechRec();
+    voiceRecognition.lang = 'ar-SA'; // widest Arabic support across Chrome builds
+    voiceRecognition.interimResults = false;
+    voiceRecognition.maxAlternatives = 1;
+    voiceRecognition.onstart = ()=>{ voiceListening=true; if(btn){ btn.style.background='#e53935'; btn.style.color='#fff'; btn.textContent='⏺️'; } toast('🎤 تحدّث الآن...'); };
+    voiceRecognition.onresult = (e)=>{
+      const text = e.results[0][0].transcript;
+      const input = document.getElementById('obsInput');
+      if(input){ input.value = input.value ? (input.value+' '+text) : text; }
+    };
+    voiceRecognition.onerror = (e)=>{
+      let msg='❌ تعذّر الإدخال الصوتي';
+      if(e.error==='not-allowed' || e.error==='permission-denied') msg='❌ تم رفض إذن الميكروفون. فعّله من إعدادات المتصفح.';
+      else if(e.error==='no-speech') msg='⚠️ لم يُسمع أي كلام، حاول مجدداً';
+      toast(msg);
+    };
+    voiceRecognition.onend = ()=>{ voiceListening=false; if(btn){ btn.style.background='var(--surface)'; btn.style.color=''; btn.textContent='🎤'; } };
+    voiceRecognition.start();
+  }catch(e){ console.error(e); toast('❌ تعذّر تشغيل الإدخال الصوتي'); }
+}
+function extractDigitsFromSpeech(text){
+  // Speech recognition may return Western digits (0-9), Arabic-Indic digits (٠-٩),
+  // or spelled-out numbers depending on the engine/locale — normalize Arabic-Indic
+  // to Western, then pull out any run of digits (the meter reading itself).
+  const arabicIndic='٠١٢٣٤٥٦٧٨٩';
+  let normalized = text.replace(/[٠-٩]/g, d => String(arabicIndic.indexOf(d)));
+  const match = normalized.match(/\d+/);
+  return match ? match[0] : null;
+}
+let voiceReadingRecognition=null, voiceReadingListening=false;
+function startVoiceReading(){
+  const btn=document.getElementById('voiceReadingBtn');
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRec){ toast('❌ الإدخال الصوتي غير مدعوم في هذا المتصفح'); return; }
+  if(voiceReadingListening && voiceReadingRecognition){ voiceReadingRecognition.stop(); return; }
+  try{
+    voiceReadingRecognition = new SpeechRec();
+    voiceReadingRecognition.lang = 'ar-SA';
+    voiceReadingRecognition.interimResults = false;
+    voiceReadingRecognition.maxAlternatives = 1;
+    voiceReadingRecognition.onstart = ()=>{ voiceReadingListening=true; if(btn){ btn.style.background='#e53935'; btn.style.color='#fff'; btn.textContent='⏺️'; } toast('🎤 قل القراءة رقماً رقماً (مثال: واحد اثنان صفر صفر)'); };
+    voiceReadingRecognition.onresult = (e)=>{
+      const text = e.results[0][0].transcript;
+      const digits = extractDigitsFromSpeech(text);
+      if(digits){
+        const input=document.getElementById('newIndexInput');
+        if(input){ input.value = digits; previewCons(); }
+        toast('✅ تم إدخال القراءة: '+digits+' — تحقّق منها قبل الحفظ');
+      }else{
+        toast('⚠️ لم أفهم رقماً واضحاً، حاول التحدث بأرقام مفردة (مثال: صفر واحد اثنان)');
+      }
+    };
+    voiceReadingRecognition.onerror = (e)=>{
+      let msg='❌ تعذّر الإدخال الصوتي';
+      if(e.error==='not-allowed' || e.error==='permission-denied') msg='❌ تم رفض إذن الميكروفون. فعّله من إعدادات المتصفح.';
+      else if(e.error==='no-speech') msg='⚠️ لم يُسمع أي كلام، حاول مجدداً';
+      toast(msg);
+    };
+    voiceReadingRecognition.onend = ()=>{ voiceReadingListening=false; if(btn){ btn.style.background='var(--surface)'; btn.style.color=''; btn.textContent='🎤'; } };
+    voiceReadingRecognition.start();
+  }catch(e){ console.error(e); toast('❌ تعذّر تشغيل الإدخال الصوتي'); }
+}
 function quickSignature(){
   const modal=document.getElementById('signatureModal');
   if(!modal) return;
@@ -1851,7 +1973,11 @@ async function loadPhoto(input){
       }
     }
     pz.innerHTML = `<img src="${dataUrl}" alt="صورة العداد"><input type="file" accept="image/*" capture="environment" id="photoInput" onchange="loadPhoto(this)">`;
-    // أضف زر OCR يدوي
+    // أضف زر OCR يدوي — احذف أي زر سابق أولاً (هو ابن لعقدة photoZone الأب وليس
+    // ابناً لـ photoZone نفسها، لذلك استبدال pz.innerHTML وحده لا يحذفه، وكان
+    // يتراكم زر جديد فوق زر قديم في كل مرة تُضاف فيها صورة جديدة)
+    const oldOcrBtn = document.getElementById('ocrTriggerBtn');
+    if(oldOcrBtn) oldOcrBtn.remove();
     const ocrBtn = document.createElement('button');
     ocrBtn.id = 'ocrTriggerBtn';
     ocrBtn.style.cssText = 'width:100%;background:#FF6F00;color:#fff;border:none;border-radius:10px;padding:11px;font-family:Tajawal,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;';
@@ -2008,6 +2134,22 @@ function renderLocationBtn(m){
 
 /* ====== ROUTE MAP (Leaflet, lazy-loaded) ====== */
 let routeMapObj=null, routeMapMarkersLayer=null, routeMapUserMarker=null;
+let mapHeatmapMode=false;
+function consumptionHeatColor(m, maxCons){
+  // Green (low) → yellow → red (high), based on this meter's consumption relative
+  // to the highest recorded consumption in the current route. Meters without a
+  // reading yet stay neutral gray so they're visually distinct from "zero usage".
+  if(!hasReading(m)) return '#9e9e9e';
+  const cons = Number(m.consumption)||0;
+  const ratio = Math.max(0, Math.min(1, cons/maxCons));
+  const hue = 120 - (ratio*120); // 120=green, 60=yellow, 0=red
+  return `hsl(${hue},75%,45%)`;
+}
+function toggleMapHeatmode(btn){
+  mapHeatmapMode = !mapHeatmapMode;
+  if(btn) btn.textContent = mapHeatmapMode ? '🌡️ حسب الحالة' : '🌡️ خريطة حرارية';
+  renderRouteMap();
+}
 function ensureLeafletCss(){
   if(document.getElementById('leafletCssTag')) return;
   const link=document.createElement('link');
@@ -2049,9 +2191,11 @@ async function renderRouteMap(){
     routeMapObj.setView([28.0,2.0], 5); // default view (Algeria) when no points yet
     return;
   }
+  const readConsumptions = withLoc.filter(hasReading).map(m=>Number(m.consumption)||0);
+  const maxCons = readConsumptions.length ? Math.max(...readConsumptions,1) : 1;
   const bounds=[];
   withLoc.forEach(m=>{
-    const color = m.status==='done' ? '#2e7d32' : (m.status==='anom' ? '#f9a825' : '#1565c0');
+    const color = mapHeatmapMode ? consumptionHeatColor(m, maxCons) : (m.status==='done' ? '#2e7d32' : (m.status==='anom' ? '#f9a825' : '#1565c0'));
     const marker=L.circleMarker([Number(m.lat),Number(m.lng)], {
       radius:9, color:'#fff', weight:2, fillColor:color, fillOpacity:0.95
     }).bindPopup(meterPopupHtml(m));
@@ -2605,8 +2749,8 @@ function buildLocationsReportHtml(){
     + "h2{color:#1565c0;margin:0 0 14px;font-size:19px;}"
     + "h3{color:#1565c0;margin:22px 0 10px;font-size:15px;}"
     + ".toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap;}"
-    + "#nearestBtn{background:#1565c0;color:#fff;border:0;border-radius:8px;padding:10px 16px;font-weight:700;font-size:13px;cursor:pointer;}"
-    + "#nearestBtn:active{background:#0d47a1;}"
+    + "#nearestBtn,#sortBtn{background:#1565c0;color:#fff;border:0;border-radius:8px;padding:10px 14px;font-weight:700;font-size:12.5px;cursor:pointer;}"
+    + "#nearestBtn:active,#sortBtn:active{background:#0d47a1;}"
     + "#nearestResult{font-size:12.5px;color:#444;font-weight:700;}"
     + "#expMap{height:420px;width:100%;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.12);background:#eef2f5;}"
     + "#mapFallback{display:none;padding:16px;text-align:center;color:#888;font-size:12.5px;background:#eef2f5;border-radius:12px;}"
@@ -2622,13 +2766,13 @@ function buildLocationsReportHtml(){
   const script = ""
     + "const DATA=" + JSON.stringify(pins) + ";"
     + "function haversine(lat1,lng1,lat2,lng2){const R=6371000,toRad=x=>x*Math.PI/180;const dLat=toRad(lat2-lat1),dLng=toRad(lng2-lng1);const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}"
-    + "function popupHtml(p){const last=p.newIndex!=null?(p.newIndex+' (استهلاك '+p.consumption+' م³)'):'لم تُقرأ بعد';return '<div class=\"map-popup\"><b>'+p.name+'</b><br>رمز الزبون: '+p.meter+'<br>آخر قراءة: '+last+'<br><a href=\"https://www.google.com/maps?q='+encodeURIComponent(p.lat+','+p.lng)+'\" target=\"_blank\">🧭 فتح الاتجاهات</a></div>';}"
+    + "function popupHtml(p){const last=p.newIndex!=null?(p.newIndex+' (استهلاك '+p.consumption+' م³)'):'لم تُقرأ بعد';const rankLine=p._rank!=null?('<br>الترتيب المقترح: #'+p._rank):'';return '<div class=\"map-popup\"><b>'+p.name+'</b><br>رمز الزبون: '+p.meter+'<br>آخر قراءة: '+last+rankLine+'<br><a href=\"https://www.google.com/maps?q='+encodeURIComponent(p.lat+','+p.lng)+'\" target=\"_blank\">🧭 فتح الاتجاهات</a></div>';}"
     + "let map,markersLayer;"
     + "function initMap(){"
     + "  if(!window.L || !DATA.length){ document.getElementById('expMap').style.display='none'; document.getElementById('mapFallback').style.display='block'; document.getElementById('mapFallback').textContent = !DATA.length ? 'لا توجد مواقع مسجّلة لعرضها على الخريطة.' : '❌ تعذر تحميل الخريطة (تحقق من الاتصال بالإنترنت).'; return; }"
     + "  map=L.map('expMap'); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);"
     + "  markersLayer=L.layerGroup().addTo(map); const bounds=[];"
-    + "  DATA.forEach(p=>{const color=p.status==='done'?'#2e7d32':(p.status==='anom'?'#f9a825':'#1565c0');L.circleMarker([p.lat,p.lng],{radius:9,color:'#fff',weight:2,fillColor:color,fillOpacity:.95}).bindPopup(popupHtml(p)).addTo(markersLayer);bounds.push([p.lat,p.lng]);});"
+    + "  DATA.forEach(p=>{const color=p.status==='done'?'#2e7d32':(p.status==='anom'?'#f9a825':'#1565c0');L.circleMarker([p.lat,p.lng],{radius:9,color:'#fff',weight:2,fillColor:color,fillOpacity:.95}).bindPopup(function(){return popupHtml(p);}).addTo(markersLayer);bounds.push([p.lat,p.lng]);});"
     + "  if(bounds.length===1) map.setView(bounds[0],16); else map.fitBounds(bounds,{padding:[24,24]});"
     + "}"
     + "function findNearest(){"
@@ -2653,18 +2797,50 @@ function buildLocationsReportHtml(){
     + "  }, {enableHighAccuracy:true,timeout:12000,maximumAge:0});"
     + "}"
     + "document.getElementById('nearestBtn').addEventListener('click',findNearest);"
+    + "function renderLocTable(order){"
+    + "  const tbody=document.getElementById('locTableBody'); if(!tbody) return;"
+    + "  tbody.innerHTML = order.map((p,i)=>'<tr><td>'+(p._rank!=null?p._rank:'')+'</td><td>'+p.meter+'</td><td>'+p.name+'</td><td>'+p.address+'</td><td>'+p.lat.toFixed(6)+', '+p.lng.toFixed(6)+'</td><td><a class=\"pin\" href=\"https://www.google.com/maps?q='+encodeURIComponent(p.lat+','+p.lng)+'\" target=\"_blank\" rel=\"noopener\">📍 فتح الخريطة</a></td></tr>').join('') || '<tr><td colspan=\"6\" style=\"text-align:center;padding:20px;color:#888;\">لا توجد مواقع مسجّلة</td></tr>';"
+    + "}"
+    + "function sortByNearest(){"
+    + "  const out=document.getElementById('sortResult');"
+    + "  if(!navigator.geolocation){ out.textContent='❌ الموقع الجغرافي غير مدعوم على هذا المتصفح'; return; }"
+    + "  if(window.isSecureContext===false){ out.textContent='⚠️ يحتاج اتصالاً آمناً (https) أو داخل التطبيق مباشرة.'; return; }"
+    + "  if(!DATA.length){ out.textContent='❌ لا توجد مواقع لترتيبها'; return; }"
+    + "  out.textContent='📡 يتم تحديد موقعك لترتيب القائمة...';"
+    + "  navigator.geolocation.getCurrentPosition(pos=>{"
+    + "    let curLat=pos.coords.latitude, curLng=pos.coords.longitude;"
+    + "    const remaining=DATA.slice(); const ordered=[];"
+    + "    while(remaining.length){"
+    + "      let bestIdx=0,bestDist=Infinity;"
+    + "      remaining.forEach((p,i)=>{const d=haversine(curLat,curLng,p.lat,p.lng); if(d<bestDist){bestDist=d;bestIdx=i;}});"
+    + "      const next=remaining.splice(bestIdx,1)[0]; next._rank=ordered.length+1; ordered.push(next);"
+    + "      curLat=next.lat; curLng=next.lng;"
+    + "    }"
+    + "    renderLocTable(ordered);"
+    + "    out.textContent='✅ تم ترتيب '+ordered.length+' موقعاً حسب الأقرب لموقعك الحالي — شاهد عمود «الترتيب» في القائمة أسفله';"
+    + "  }, (err)=>{"
+    + "    let msg='❌ تعذر تحديد موقعك.';"
+    + "    if(err && err.code===1) msg='❌ تم رفض إذن الموقع. فعّل صلاحية الموقع لهذا المتصفح من إعدادات الجهاز.';"
+    + "    else if(err && err.code===2) msg='❌ تعذر تحديد الموقع حالياً (تأكد من تفعيل GPS).';"
+    + "    else if(err && err.code===3) msg='❌ انتهت مهلة تحديد الموقع، حاول مجدداً في مكان مفتوح.';"
+    + "    out.textContent=msg;"
+    + "  }, {enableHighAccuracy:true,timeout:12000,maximumAge:0});"
+    + "}"
+    + "document.getElementById('sortBtn').addEventListener('click',sortByNearest);"
     + "initMap();";
   return '<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
     + '<title>مواقع الزبائن</title>'
     + '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">'
     + '<style>' + css + '</style></head><body><div class="wrap">'
     + '<h2>📍 مواقع الزبائن (' + withLoc.length + ')</h2>'
-    + '<div class="toolbar"><button id="nearestBtn">🧭 أقرب زبون</button><span id="nearestResult"></span></div>'
+    + '<div class="toolbar"><button id="sortBtn">🔃 ترتيب حسب الأقرب</button><button id="nearestBtn">🧭 أقرب زبون</button></div>'
+    + '<div id="sortResult" style="font-size:12.5px;color:#444;font-weight:700;margin-bottom:6px;"></div>'
+    + '<div id="nearestResult" style="font-size:12.5px;color:#444;font-weight:700;margin-bottom:6px;"></div>'
     + '<div id="expMap"></div><div id="mapFallback"></div>'
     + '<h3>📋 قائمة الزبائن المسجّلة (' + withLoc.length + ')</h3>'
-    + '<table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الإحداثيات</th><th>الموقع</th></tr>'
-    + (withLoc.map(m=>'<tr><td>'+escH(m.meter||'')+'</td><td>'+escH(m.name||'')+'</td><td>'+escH(m.address||'')+'</td><td>'+Number(m.lat).toFixed(6)+', '+Number(m.lng).toFixed(6)+'</td><td><a class="pin" href="https://www.google.com/maps?q='+encodeURIComponent(m.lat+','+m.lng)+'" target="_blank" rel="noopener">📍 فتح الخريطة</a></td></tr>').join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888;">لا توجد مواقع مسجّلة</td></tr>')
-    + '</table>'
+    + '<table><tr><th>الترتيب</th><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th><th>الإحداثيات</th><th>الموقع</th></tr><tbody id="locTableBody">'
+    + (withLoc.map(m=>'<tr><td></td><td>'+escH(m.meter||'')+'</td><td>'+escH(m.name||'')+'</td><td>'+escH(m.address||'')+'</td><td>'+Number(m.lat).toFixed(6)+', '+Number(m.lng).toFixed(6)+'</td><td><a class="pin" href="https://www.google.com/maps?q='+encodeURIComponent(m.lat+','+m.lng)+'" target="_blank" rel="noopener">📍 فتح الخريطة</a></td></tr>').join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888;">لا توجد مواقع مسجّلة</td></tr>')
+    + '</tbody></table>'
     + (withoutLoc.length ? '<h3>⚠️ زبائن بدون موقع مسجّل (' + withoutLoc.length + ')</h3><div class="nogps-note">هؤلاء الزبائن ليس لديهم إحداثيات GPS مسجّلة، لذلك لا يظهرون على الخريطة أعلاه.</div><table><tr><th>رمز الزبون</th><th>الاسم</th><th>العنوان</th></tr>' + noGpsRows + '</table>' : '')
     + '</div>'
     + '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>'
@@ -2758,7 +2934,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=30');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=34');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -2862,7 +3038,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=30').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=34').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;

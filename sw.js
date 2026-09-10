@@ -1,9 +1,11 @@
-const CACHE_NAME = 'meter-reading-v30-pro';
+const CACHE_NAME = 'meter-reading-v34-pro';
 const APP_SHELL = [
   './', './index.html', './manifest.json', './icon-192x192.png', './icon-512x512.png',
   './vendor/jszip.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
   'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
   'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=IBM+Plex+Mono:wght@600;700&display=swap'
 ];
 
