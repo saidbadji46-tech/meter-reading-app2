@@ -13,9 +13,14 @@
 <link rel="apple-touch-icon" href="https://saidbadji46-tech.github.io/meter-reading-app2/icon-192x192.png">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Each of these tries a local vendor/ copy first, and only falls back to the
+     CDN if that file isn't there (via onerror) — so nothing changes today (the
+     vendor files don't exist yet, so it behaves exactly like before and loads
+     from the CDN), but the moment someone adds the matching file to vendor/,
+     it's used instantly with zero further code changes and zero internet needed. -->
+<script src="vendor/xlsx.full.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.async=false;s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';document.head.appendChild(s);"></script>
 <script src="vendor/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="vendor/tesseract.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.async=false;s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';document.head.appendChild(s);"></script>
 <style>
 :root{
   --blue:#1565C0;
@@ -1746,14 +1751,35 @@ function startVoiceNote(){
     voiceRecognition.start();
   }catch(e){ console.error(e); toast('❌ تعذّر تشغيل الإدخال الصوتي'); }
 }
+const AR_DIGIT_WORDS = {
+  'صفر':'0','واحد':'1','واحدة':'1','اثنان':'2','اثنين':'2','إثنان':'2','إثنين':'2',
+  'ثلاثة':'3','ثلاث':'3','أربعة':'4','اربعة':'4','أربع':'4','اربع':'4',
+  'خمسة':'5','خمس':'5','ستة':'6','ست':'6','سبعة':'7','سبع':'7',
+  'ثمانية':'8','ثماني':'8','ثمانيه':'8','تسعة':'9','تسع':'9'
+};
 function extractDigitsFromSpeech(text){
   // Speech recognition may return Western digits (0-9), Arabic-Indic digits (٠-٩),
-  // or spelled-out numbers depending on the engine/locale — normalize Arabic-Indic
-  // to Western, then pull out any run of digits (the meter reading itself).
+  // or spelled-out number words ("واحد اثنان ثلاثة") depending on the engine/locale.
+  // Since we ask the user to say digits one at a time, the engine usually returns
+  // them as SEPARATE tokens rather than one joined number — so we must collect
+  // every digit token in order and concatenate them, not just grab the first match
+  // (that earlier bug is exactly why saying "1 2 3" only kept "2": matching only
+  // the first \d+ run, or only the first recognized word, silently dropped the rest).
   const arabicIndic='٠١٢٣٤٥٦٧٨٩';
-  let normalized = text.replace(/[٠-٩]/g, d => String(arabicIndic.indexOf(d)));
-  const match = normalized.match(/\d+/);
-  return match ? match[0] : null;
+  const normalized = text.replace(/[٠-٩]/g, d => String(arabicIndic.indexOf(d)));
+  const tokens = normalized.split(/[\s,،]+/).filter(Boolean);
+  let digits='';
+  tokens.forEach(tok=>{
+    if(/^\d+$/.test(tok)) digits+=tok;
+    else if(AR_DIGIT_WORDS[tok]!==undefined) digits+=AR_DIGIT_WORDS[tok];
+  });
+  if(!digits){
+    // Fallback: engine returned one glued token like "123" or "١٢٣" with no
+    // separators at all — still handle that correctly instead of returning null.
+    const m = normalized.match(/\d+/g);
+    if(m) digits = m.join('');
+  }
+  return digits || null;
 }
 let voiceReadingRecognition=null, voiceReadingListening=false;
 function startVoiceReading(){
@@ -2154,14 +2180,21 @@ function ensureLeafletCss(){
   if(document.getElementById('leafletCssTag')) return;
   const link=document.createElement('link');
   link.id='leafletCssTag'; link.rel='stylesheet';
-  link.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+  link.href='vendor/leaflet.min.css';
+  link.onerror=function(){ this.onerror=null; this.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; };
   document.head.appendChild(link);
 }
 async function ensureLeaflet(){
   if(typeof window.L==='object' && window.L.map) return true;
   ensureLeafletCss();
-  try{ await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'); }
-  catch(e){ console.warn('Leaflet load failed', e); }
+  // Same local-vendor-first, CDN-fallback pattern as JSZip: try a local copy so
+  // the map works fully offline once someone drops leaflet.min.js in vendor/,
+  // and change nothing for anyone who hasn't (falls straight through to CDN).
+  try{ await loadScriptOnce('vendor/leaflet.min.js'); }
+  catch(e){
+    try{ await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'); }
+    catch(e2){ console.warn('Leaflet load failed', e2); }
+  }
   return typeof window.L==='object' && !!window.L.map;
 }
 function meterPopupHtml(m){
@@ -2934,7 +2967,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=34');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=35');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -3038,7 +3071,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=34').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=35').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
