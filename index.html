@@ -2498,7 +2498,7 @@ function tryParseADEFixedWidth(lines){
       if(serials.length >= 2) meterSerial = serials[1];
       else if(serials.length === 1) meterSerial = serials[0];
       const address = [addr1, addr2].filter(Boolean).join('، ');
-      records.push({ name, meter: meterSeg, address, subType, phone:'', prevIndex, meterSerial });
+      records.push({ name, meter: meterSeg, address, subType, phone:'', prevIndex, meterSerial, adeRawLine: raw });
     }
   }
   if(total>0 && matched >= total*0.5) return records;
@@ -2517,11 +2517,16 @@ async function commitImport(records, statusEl, input, routeNum=''){
     const existing = meters.find(x=>String(x.meter||'').trim().toUpperCase()===meterKey);
     if(existing){
       // Never replace the customer's name or other existing data. Only restore
-      // the serial from the ADE import when it is available.
+      // the serial from the ADE import when it is available, and backfill the
+      // raw ADE line if this customer didn't have one yet (needed to export the
+      // official fixed-width TXT format later).
+      let touched=false;
       if(rec.meterSerial && String(existing.meterSerial||'').trim() !== String(rec.meterSerial).trim()){
         existing.meterSerial = String(rec.meterSerial).trim();
-        updated++;
-      } else skipped++;
+        touched=true;
+      }
+      if(rec.adeRawLine && !existing.adeRawLine){ existing.adeRawLine = rec.adeRawLine; touched=true; }
+      if(touched) updated++; else skipped++;
       return;
     }
     meters.push({
@@ -2534,7 +2539,8 @@ async function commitImport(records, statusEl, input, routeNum=''){
       prevIndex: parseFloat(rec.prevIndex)||0,
       newIndex:null, consumption:0, amount:0,
       meterSerial:rec.meterSerial||'', status:'pending', annot:null, lowReadingReason:'', obs:'', hasPhoto:false, savedAt:null,
-      lat:null, lng:null, locAccuracy:null
+      lat:null, lng:null, locAccuracy:null,
+      adeRawLine: rec.adeRawLine||null
     });
     existingMeters.add(meterKey);
     added++;
@@ -2724,20 +2730,70 @@ async function resetAdeStorageFolder(){
   try{ await idbDeleteRaw('adeStorageHandle'); }catch(e){}
   toast('✅ تم إعادة التعيين — عند أول تصدير قادم سيُطلب منك اختيار مجلد التخزين من جديد');
 }
+/* ====== ADE fixed-width export line reconstruction ======
+   Rebuilds each line in the exact 256-char layout of the official ADE export
+   files (matches the samples the customer sent: route/order/meter code, name,
+   address, then the serial+tariff block, then this round's result — date,
+   time, worker name, and a 2-letter status + value). For any customer whose
+   original raw ADE line was preserved at import time, everything up through
+   the serial+tariff block is copied byte-for-byte unchanged; only the "this
+   round's result" tail is regenerated from live data. Status code mapping:
+   'EM' = a reading was recorded (matches the source files: used whenever a
+   numeric value exists, even for customers flagged historically as 'AR').
+   'AR' = meter reported damaged (this round) with no reading possible.
+   'CI' = flagged as an empty/inaccessible dwelling (INH) — best-effort guess,
+   only 'EM' is confidently verified against the samples; 'AR' and 'CI'/'II'
+   should be checked against a real completed export before relying on them. */
+function padRightTo(s, len){ s=String(s??''); return s.length>=len ? s.substring(0,len) : s+' '.repeat(len-s.length); }
+function buildAdeExportLine(m){
+  const worker = settings.worker || '';
+  const now = m.savedAt ? new Date(m.savedAt) : new Date();
+  const p2 = n=>String(n).padStart(2,'0');
+  const dateStr = `${now.getFullYear()}${p2(now.getMonth()+1)}${p2(now.getDate())}`;
+  const timeStr = `${p2(now.getHours())}:${p2(now.getMinutes())}`;
+
+  let status2=null, val2='';
+  if(hasReading(m)){ status2='EM'; val2=String(m.newIndex); }
+  else if(m.status==='anom'){
+    const codes=String(m.annot||'').split('+').map(c=>c.trim());
+    if(codes.includes('AR')) status2='AR';
+    else if(codes.includes('INH')) status2='CI';
+    else status2='II';
+  }
+
+  if(m.adeRawLine){
+    const raw=m.adeRawLine;
+    if(!status2) return raw; // still pending — nothing new to report, leave untouched
+    const tailStart=149;
+    const tail=raw.substring(tailStart);
+    const mOld=tail.match(/^\s*\d+[A-Z]{2}/);
+    const oldPart=mOld?mOld[0]:'';
+    const afterOld=tail.substring(oldPart.length);
+    const mBig=afterOld.match(/^\s*\d+/);
+    const bigPart=mBig?mBig[0]:'';
+    const prefixLen=tailStart+oldPart.length+bigPart.length;
+    const prefix=raw.substring(0,prefixLen);
+    const totalLen=raw.length;
+    let suffix='  '+dateStr+timeStr+padRightTo(worker,17)+padRightTo('unknown',10)+status2+val2;
+    const remain=totalLen-prefixLen;
+    suffix = suffix.length>=remain ? suffix.substring(0,remain) : suffix+' '.repeat(remain-suffix.length);
+    return prefix+suffix;
+  }
+
+  // No original ADE line for this customer (added manually or imported from a
+  // different file) — best-effort row with the same 256-char column layout,
+  // leaving the route/serial/tariff fields we have no source data for blank
+  // rather than guessing, so the file's record length stays consistent.
+  if(!status2) status2='II';
+  const line = padRightTo('',11) + padRightTo(m.meter||'',6) + padRightTo(m.name||'',30)
+    + padRightTo((m.address||''),60) + padRightTo('',42)
+    + '  '+dateStr+timeStr+padRightTo(worker,17)+padRightTo('unknown',10)+status2+val2;
+  return padRightTo(line,256);
+}
 async function exportTXT(){
   if(!meters.length){ toast('لا توجد بيانات لتصديرها'); return; }
-  const headers = ['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];
-  const lines = [headers.join('\t')];
-  meters.forEach(m=>{
-    const row = [
-      m.meter, m.meterSerial||'', m.name, m.address||'', m.subType||'', m.phone||'',
-      m.prevIndex, m.newIndex!=null?m.newIndex:'', m.consumption||'', m.amount||'',
-      m.status, m.annot||'', m.lowReadingReason||'', (m.obs||'').replace(/\t|\n/g,' '),
-      m.hasPhoto?'1':'0', m.savedAt||''
-    ];
-    lines.push(row.join('\t'));
-  });
-  const blob = new Blob(['\uFEFF'+lines.join('\n')], {type:'text/plain;charset=utf-8'});
+  const lines = meters.map(buildAdeExportLine);
+  const blob = new Blob(['\uFEFF'+lines.join('\r\n')], {type:'text/plain;charset=utf-8'});
   await saveExportToCliente(blob, `${getRouteExportName()}.txt`);
 }
 
@@ -2967,7 +3023,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=35');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=36');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -2979,7 +3035,7 @@ async function exportResultsZip(){
 if(!meters.length){toast('لا توجد بيانات لتصديرها');return false;}if(!await ensureJSZip()){toast('❌ تعذر تحميل محرك ZIP المحلي');return false;}if(typeof XLSX==='undefined'){toast('❌ مكتبة Excel غير متوفرة؛ تحقق من الاتصال بالإنترنت');return false;}
 try{toast('1/4 تجهيز Excel...');const rows=meters.map(m=>({'رمز الزبون':m.meter,'الرقم التسلسلي للعداد':m.meterSerial||'','الاسم':m.name,'العنوان':m.address||'','نوع المشترك':m.subType||'','الهاتف':m.phone||'','رقم التعريف الوطني':m.nationalId||'','القراءة السابقة':m.prevIndex,'القراءة الجديدة':m.newIndex!=null?m.newIndex:'','الاستهلاك (م³)':m.consumption||'','المبلغ':m.amount||'','الحالة':m.status==='done'?'مرفوعة':(m.status==='anom'?'إشارة':'معلّقة'),'كود الإشارات':m.annot||'','سبب القراءة الأقل/المساوية':m.lowReadingReason||'','الملاحظة':m.obs||'','لديه صورة':m.hasPhoto?'نعم':'لا','خط العرض':m.lat||'','خط الطول':m.lng||'','رابط الخريطة':(m.lat&&m.lng)?`https://www.google.com/maps?q=${m.lat},${m.lng}`:'','تاريخ الرفع':m.savedAt?new Date(m.savedAt).toLocaleString('ar'):''}));
 const ws=XLSX.utils.json_to_sheet(rows);const headers=Object.keys(rows[0]||{});ws['!cols']=headers.map(h=>{let ml=String(h).length;for(const r of rows)ml=Math.max(ml,String(r[h]??'').length);return{wch:Math.min(55,Math.max(10,ml+2))};});const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'القراءات');const xlsxOut=XLSX.write(wb,{type:'array',bookType:'xlsx'});const zip=new JSZip(),route=getRouteExportName();
-const heads=['meter','meterSerial','name','address','subType','phone','prevIndex','newIndex','consumption','amount','status','annot','lowReadingReason','obs','hasPhoto','savedAt'];const lines=[heads.join('\\t')];meters.forEach(m=>lines.push([m.meter,m.meterSerial||'',m.name||'',m.address||'',m.subType||'',m.phone||'',m.prevIndex??'',m.newIndex??'',m.consumption??'',m.amount??'',m.status||'',m.annot||'',m.lowReadingReason||'',(m.obs||'').replace(/\\t|\\n/g,' '),m.hasPhoto?'1':'0',m.savedAt||''].join('\\t')));zip.file(`${route}.txt`,'\\uFEFF'+lines.join('\\n'));zip.file('client.xlsx',xlsxOut);
+const lines=meters.map(buildAdeExportLine);zip.file(`${route}.txt`,'\uFEFF'+lines.join('\r\n'));zip.file('client.xlsx',xlsxOut);
 toast('2/4 إضافة الصور...');const photos=zip.folder('الصور');let photoCount=0;for(const m of meters){if(!m.hasPhoto)continue;try{const d=await Promise.race([sg('photo:'+m.id),new Promise(r=>setTimeout(()=>r(null),5000))]);if(d&&d.includes(',')){photos.file(`${m.meter||m.id}.jpg`,d.split(',')[1],{base64:true});photoCount++;}}catch(e){}}
 toast('3/4 إضافة المواقع والتقرير...');zip.file('المواقع.html',buildLocationsReportHtml());zip.file('تقرير الجولة.html',buildRouteReportHtml());
 toast('4/4 ضغط الملف...');const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6},streamFiles:true},meta=>{if(meta&&meta.percent)toast(`4/4 ضغط الملف ${Math.round(meta.percent)}%...`);});await saveExportToCliente(blob,`${route}.zip`);toast(`✅ تم تصدير ZIP: ${route} (${photoCount} صورة)`);return true;
@@ -3071,7 +3127,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=35').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=36').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
