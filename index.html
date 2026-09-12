@@ -475,6 +475,15 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
         <div class="route-stat-box"><span class="val val-total" id="rsGps">0</span><span class="lbl">📍 مواقع مسجلة</span></div>
         <div class="route-stat-box"><span class="val val-done" id="rsProgressNum">0%</span><span class="lbl">📊 نسبة الإنجاز</span></div>
       </div>
+      <div style="margin:10px 14px 12px;padding:10px 12px;background:var(--surface);border-radius:10px;border:1px solid var(--line);">
+        <div style="font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:6px;">🚶 نشاطي في هذه الجولة <span style="font-weight:600;opacity:.75;">(تقديري وليس دقيقاً طبياً)</span></div>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:8px 4px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:800;color:var(--blue);display:block;" id="actDistance">0</span><span style="font-size:10px;color:var(--muted);">كم مقطوعة</span></div>
+          <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:8px 4px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:800;color:var(--blue);display:block;" id="actMinutes">0</span><span style="font-size:10px;color:var(--muted);">دقيقة مشي تقريباً</span></div>
+          <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:8px 4px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:800;color:var(--blue);display:block;" id="actCalories">—</span><span style="font-size:10px;color:var(--muted);">سعرة تقريبية</span></div>
+        </div>
+        <div id="actTip" style="font-size:10.5px;color:var(--muted);margin-top:7px;line-height:1.6;"></div>
+      </div>
     </div>
   </div>
 
@@ -725,6 +734,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
         <div class="field"><label>العملة</label>
           <input type="text" value="دينار جزائري (دج)" disabled style="background:var(--surface);color:var(--muted);">
         </div>
+        <div class="field"><label>وزنك (كجم) — اختياري، لتقدير السعرات المحروقة فقط</label><input id="mWeight" type="number" step="0.5" placeholder="مثال: 75"></div>
         <button class="btn-prim" onclick="saveSettings2()" style="width:100%;padding:12px;">حفظ الإعدادات</button>
       </div>
     </div>
@@ -904,7 +914,7 @@ const LOW_READING_REASONS = [
 ];
 
 let meters = [];
-let settings = { price: 25, currency: 'دج', routeNum: 'T00001', worker: 'BENAMMAR Said', triplet: '1' };
+let settings = { price: 25, currency: 'دج', routeNum: 'T00001', worker: 'BENAMMAR Said', triplet: '1', weightKg: null };
 let currentMeterId = null;
 let currentTab = 'tab-all';
 let selectedAnnots = [];
@@ -990,6 +1000,7 @@ async function loadData(){
   document.getElementById('mTriplet').value = String(settings.triplet||'1');
   document.getElementById('mWorkerName').value = settings.worker||'';
   document.getElementById('mPrice').value = settings.price;
+  document.getElementById('mWeight').value = settings.weightKg||'';
   settings.currency = 'دج';
   document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
   document.getElementById('topBadge').textContent = settings.routeNum;
@@ -1232,6 +1243,38 @@ function toggleRouteStatsPanel(){
   ss('routeStatsCollapsed', JSON.stringify(routeStatsCollapsed));
 }
 
+function computeActivityEstimate(){
+  // Rough estimate only — based on the GPS points you actually captured for
+  // visited meters, in the order they were saved, not a continuous GPS track.
+  // The real path walked (stairs, backtracking, etc.) is always longer than
+  // this straight-line estimate, so treat it as a floor, not a precise figure.
+  const visited = meters.filter(m=>m.lat && m.lng && m.savedAt).sort((a,b)=>a.savedAt-b.savedAt);
+  let distanceKm = 0;
+  for(let i=1;i<visited.length;i++){
+    distanceKm += haversineMeters(Number(visited[i-1].lat),Number(visited[i-1].lng),Number(visited[i].lat),Number(visited[i].lng))/1000;
+  }
+  const speedKmh = 4.2; // typical fieldwork walking pace carrying equipment
+  const minutes = distanceKm>0 ? (distanceKm/speedKmh)*60 : 0;
+  let calories = null;
+  if(settings.weightKg){
+    const MET = 3.8; // moderate walking with a light load
+    calories = Math.round((MET*3.5*settings.weightKg/200) * minutes);
+  }
+  return {distanceKm, minutes, calories};
+}
+function renderActivityEstimate(){
+  const act = computeActivityEstimate();
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('actDistance', act.distanceKm.toFixed(1));
+  set('actMinutes', Math.round(act.minutes));
+  set('actCalories', act.calories!=null ? act.calories : '—');
+  const tipEl=document.getElementById('actTip');
+  if(tipEl){
+    tipEl.textContent = act.calories==null
+      ? 'أضف وزنك في "إعدادات الحساب" لتقدير السعرات المحروقة. تذكير عام: خذ استراحة قصيرة كل ساعة واشرب ماءً بانتظام.'
+      : 'تذكير عام: خذ استراحة قصيرة كل ساعة، اشرب ماءً بانتظام، وتناول وجبة متوازنة بعد الجولة لاسترجاع مجهودك.';
+  }
+}
 function renderRouteStatsPanel(){
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
   const total=meters.length;
@@ -1268,6 +1311,7 @@ function renderRouteStatsPanel(){
   set('rsProgressNum',progress+'%');
   set('rsProgressLabel',progress+'%');
   const fill=document.getElementById('rsProgressFill'); if(fill) fill.style.width=progress+'%';
+  renderActivityEstimate();
 }
 
 /* ===== PRO DASHBOARD / ARCHIVE / VALIDATION ===== */
@@ -2427,8 +2471,11 @@ function saveRouteInfo(){
 function saveSettings2(){
   settings.price = parseFloat(document.getElementById('mPrice').value)||25;
   settings.currency = 'دج';
+  const w = parseFloat(document.getElementById('mWeight').value);
+  settings.weightKg = (w && w>0) ? w : null;
   saveSettings3();
   document.querySelectorAll('.cur2').forEach(el=>el.textContent=settings.currency);
+  renderRouteStatsPanel();
   toast('تم حفظ الإعدادات');
 }
 
@@ -2818,7 +2865,8 @@ function getRouteStats(){
   const highThreshold = Math.max(avgCons*3, avgCons+30, 50);
   const zero = readMeters.filter(m=>(Number(m.consumption)||0)===0).length;
   const high = readMeters.filter(m=>(Number(m.consumption)||0)>highThreshold).length;
-  return {total,done,pending,anom,gps,photos,consumption,amount,progress,inh,leak,problems,zero,high};
+  const activity = computeActivityEstimate();
+  return {total,done,pending,anom,gps,photos,consumption,amount,progress,inh,leak,problems,zero,high,activity};
 }
 function buildLocationsReportHtml(){
   const withLoc = meters.filter(m=>m.lat && m.lng);
@@ -2949,7 +2997,7 @@ function buildRouteReportHtml(){
   }).join('');
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير الجولة ${route}</title><style>
 @page{size:A4;margin:12mm}body{font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#222;margin:0;padding:16px}.report{max-width:1100px;margin:auto;background:#fff;padding:22px;border-radius:12px;box-shadow:0 2px 12px #0001}h1{margin:0 0 5px;color:#1565c0;font-size:25px}h2{font-size:17px;margin:22px 0 10px;color:#1565c0}.meta{color:#666;font-size:12px;line-height:1.8}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:16px}.card{border:1px solid #ddd;border-radius:9px;padding:12px;text-align:center}.num{font-size:22px;font-weight:800;color:#1565c0}.lbl{font-size:11px;color:#666;margin-top:4px}.bar{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin-top:12px}.bar>span{display:block;height:100%;background:#1565c0;width:${st.progress}%}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#1565c0;color:white;padding:8px}td{padding:7px;border-bottom:1px solid #eee;text-align:right}a{color:#1565c0;font-weight:bold;text-decoration:none}.actions{position:sticky;top:0;background:#fff;padding-bottom:10px;display:flex;gap:8px}.actions button{border:0;border-radius:8px;padding:10px 14px;background:#1565c0;color:#fff;font-weight:bold}@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}table{font-size:9px}.report{padding:12px}}@media print{body{background:#fff;padding:0}.report{box-shadow:none;padding:0}.actions{display:none}.card{break-inside:avoid}}
-</style></head><body><div class="report"><div class="actions"><button onclick="tryPrintReport()">🖨️ طباعة</button><button onclick="tryCloseReport()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>🎯 لوحة إحصائيات الجولة</h2><div class="grid"><div class="card"><div class="num">${st.inh}</div><div class="lbl">🚫 عدد INH</div></div><div class="card"><div class="num">${st.zero}</div><div class="lbl">صفر استهلاك</div></div><div class="card"><div class="num">${st.high}</div><div class="lbl">استهلاك ضخم</div></div><div class="card"><div class="num">${st.leak}</div><div class="lbl">💧 تسربات FC</div></div><div class="card"><div class="num">${st.problems}</div><div class="lbl">⚠️ عدادات ذات مشاكل</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">📍 مواقع مسجلة</div></div><div class="card"><div class="num">${st.progress}%</div><div class="lbl">📊 نسبة الإنجاز</div></div></div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(hasReading(m)?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(hasReading).sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div>
+</style></head><body><div class="report"><div class="actions"><button onclick="tryPrintReport()">🖨️ طباعة</button><button onclick="tryCloseReport()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>🎯 لوحة إحصائيات الجولة</h2><div class="grid"><div class="card"><div class="num">${st.inh}</div><div class="lbl">🚫 عدد INH</div></div><div class="card"><div class="num">${st.zero}</div><div class="lbl">صفر استهلاك</div></div><div class="card"><div class="num">${st.high}</div><div class="lbl">استهلاك ضخم</div></div><div class="card"><div class="num">${st.leak}</div><div class="lbl">💧 تسربات FC</div></div><div class="card"><div class="num">${st.problems}</div><div class="lbl">⚠️ عدادات ذات مشاكل</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">📍 مواقع مسجلة</div></div><div class="card"><div class="num">${st.progress}%</div><div class="lbl">📊 نسبة الإنجاز</div></div></div><h2>🚶 نشاط العامل التقديري</h2><div class="meta">تقدير تقريبي وليس دقيقاً طبياً، مبني على مواقع GPS المسجّلة فقط.</div><div class="grid"><div class="card"><div class="num">${st.activity.distanceKm.toFixed(1)}</div><div class="lbl">كم مقطوعة تقريباً</div></div><div class="card"><div class="num">${Math.round(st.activity.minutes)}</div><div class="lbl">دقيقة مشي تقريباً</div></div><div class="card"><div class="num">${st.activity.calories!=null?st.activity.calories:'—'}</div><div class="lbl">سعرة تقريبية محروقة</div></div></div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(hasReading(m)?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(hasReading).sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div>
 <script>
 function tryPrintReport(){
   try{ window.print(); }
@@ -3023,7 +3071,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=36');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=37');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -3127,7 +3175,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=36').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=37').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
