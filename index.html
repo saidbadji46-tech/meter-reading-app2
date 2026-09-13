@@ -436,6 +436,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
     </div>
     <div class="title" id="topTitle">قراءات العدادات - Said</div>
     <span id="connIndicator" title="حالة الاتصال" style="width:9px;height:9px;border-radius:50%;background:#4CAF50;flex-shrink:0;box-shadow:0 0 0 2px rgba(255,255,255,.35);"></span>
+    <button id="topInstallBtn" onclick="triggerInstall()" title="تثبيت التطبيق" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:700;font-family:'Tajawal',sans-serif;cursor:pointer;flex-shrink:0;">📲 تثبيت</button>
     <div class="badge" id="topBadge">الرئيسية</div>
   </div>
 
@@ -1330,7 +1331,7 @@ function renderRouteStatsPanel(){
   const currency=(settings&&settings.currency)||'';
 
   set('rsTotal',total);
-  set('rsDone',doneMeters.length);
+  set('rsDone',readMeters.length);
   set('rsPending',pending);
   set('rsInh',inhCount);
   set('rsZero',zeroCount);
@@ -1424,7 +1425,15 @@ function renderPerformanceStats(){
     </div>
   </div>`;
 }
-function renderArchive(){renderPerformanceStats();const el=document.getElementById('archiveList');if(!el)return;if(!roundArchives.length){el.innerHTML='<div class="empty-state"><div class="ico">🗂️</div><p>لا توجد جولات سابقة بعد.</p></div>';return;}el.innerHTML=roundArchives.map(a=>`<div class="archive-card"><div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:15px;font-weight:900;color:var(--blue)">${escH(a.route)}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">${new Date(a.completedAt).toLocaleString('ar-DZ')}</div></div><span class="chip chip-done">${a.stats.done}/${a.stats.total} مرفوعة</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px"><div class="stat-box" style="padding:8px"><b>${a.stats.total}</b><div class="lbl">زبون</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.consumption}</b><div class="lbl">م³</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.anom}</b><div class="lbl">إشارات</div></div></div><div class="archive-actions"><button class="btn-prim" onclick="openArchivedReport('${a.id}')">📋 التقرير</button><button class="btn-ghost" onclick="restoreArchive('${a.id}')">♻️ استرجاع</button></div></div>`).join('');}
+function renderArchive(){renderPerformanceStats();const el=document.getElementById('archiveList');if(!el)return;if(!roundArchives.length){el.innerHTML='<div class="empty-state"><div class="ico">🗂️</div><p>لا توجد جولات سابقة بعد.</p></div>';return;}el.innerHTML=roundArchives.map(a=>`<div class="archive-card"><div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:15px;font-weight:900;color:var(--blue)">${escH(a.route)}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">${new Date(a.completedAt).toLocaleString('ar-DZ')}</div></div><span class="chip chip-done">${a.stats.done}/${a.stats.total} مرفوعة</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px"><div class="stat-box" style="padding:8px"><b>${a.stats.total}</b><div class="lbl">زبون</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.consumption}</b><div class="lbl">م³</div></div><div class="stat-box" style="padding:8px"><b>${a.stats.anom}</b><div class="lbl">إشارات</div></div></div><div class="archive-actions"><button class="btn-prim" onclick="openArchivedReport('${a.id}')">📋 التقرير</button><button class="btn-ghost" onclick="restoreArchive('${a.id}')">♻️ استرجاع</button><button class="btn-ghost" style="color:var(--danger);border-color:#FFCDD2;" onclick="deleteArchivedRound('${a.id}')">🗑️ حذف</button></div></div>`).join('');}
+async function deleteArchivedRound(id){
+  const a=roundArchives.find(x=>x.id===id); if(!a) return;
+  if(!confirm(`حذف أرشيف الجولة "${a.route}" نهائياً؟ لا يمكن التراجع عن هذا.`)) return;
+  roundArchives=roundArchives.filter(x=>x.id!==id);
+  await ss('roundArchives',JSON.stringify(roundArchives));
+  renderArchive();
+  toast('🗑️ تم حذف الجولة من الأرشيف');
+}
 function openArchivedReport(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;const oldM=meters,oldS=settings;meters=a.meters;settings=a.settings;const html=buildRouteReportHtml();meters=oldM;settings=oldS;showReportHtml(html);}
 async function restoreArchive(id){const a=roundArchives.find(x=>x.id===id);if(!a)return;if(!confirm('استرجاع هذه الجولة سيستبدل الجولة الحالية. هل تريد المتابعة؟'))return;meters=JSON.parse(JSON.stringify(a.meters));settings=Object.assign(settings,JSON.parse(JSON.stringify(a.settings)));await saveMeters();await saveSettings3();renderAll();toast('♻️ تم استرجاع الجولة');}
 async function archiveAndStartNewRound(){const a=await archiveCurrentRound(false);if(!a)return;meters=[];settings.routeNum='T00001';settings.currentRoundCreatedAt=Date.now();currentRoundCreatedAt=settings.currentRoundCreatedAt;await saveMeters();await saveSettings3();document.getElementById('mRouteNum').value=settings.routeNum;document.getElementById('topBadge').textContent=settings.routeNum;renderAll();toast('➕ تم فتح جولة جديدة');}
@@ -2898,7 +2907,8 @@ function getRouteStats(){
   const zero = readMeters.filter(m=>(Number(m.consumption)||0)===0).length;
   const high = readMeters.filter(m=>(Number(m.consumption)||0)>highThreshold).length;
   const activity = computeActivityEstimate();
-  return {total,done,pending,anom,gps,photos,consumption,amount,progress,inh,leak,problems,zero,high,activity};
+  const readCount = readMeters.length; // meters actually read, whether flagged with a signal or not — for the "مرفوعة" display only; pending/progress keep using the status-based counts above, unchanged
+  return {total,done,pending,anom,gps,photos,consumption,amount,progress,inh,leak,problems,zero,high,activity,readCount};
 }
 function buildLocationsReportHtml(){
   const withLoc = meters.filter(m=>m.lat && m.lng);
@@ -3029,7 +3039,7 @@ function buildRouteReportHtml(){
   }).join('');
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير الجولة ${route}</title><style>
 @page{size:A4;margin:12mm}body{font-family:Arial,Tahoma,sans-serif;background:#f4f6f8;color:#222;margin:0;padding:16px}.report{max-width:1100px;margin:auto;background:#fff;padding:22px;border-radius:12px;box-shadow:0 2px 12px #0001}h1{margin:0 0 5px;color:#1565c0;font-size:25px}h2{font-size:17px;margin:22px 0 10px;color:#1565c0}.meta{color:#666;font-size:12px;line-height:1.8}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:16px}.card{border:1px solid #ddd;border-radius:9px;padding:12px;text-align:center}.num{font-size:22px;font-weight:800;color:#1565c0}.lbl{font-size:11px;color:#666;margin-top:4px}.bar{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin-top:12px}.bar>span{display:block;height:100%;background:#1565c0;width:${st.progress}%}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#1565c0;color:white;padding:8px}td{padding:7px;border-bottom:1px solid #eee;text-align:right}a{color:#1565c0;font-weight:bold;text-decoration:none}.actions{position:sticky;top:0;background:#fff;padding-bottom:10px;display:flex;gap:8px}.actions button{border:0;border-radius:8px;padding:10px 14px;background:#1565c0;color:#fff;font-weight:bold}@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}table{font-size:9px}.report{padding:12px}}@media print{body{background:#fff;padding:0}.report{box-shadow:none;padding:0}.actions{display:none}.card{break-inside:avoid}}
-</style></head><body><div class="report"><div class="actions"><button onclick="tryPrintReport()">🖨️ طباعة</button><button onclick="tryCloseReport()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.done}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>🎯 لوحة إحصائيات الجولة</h2><div class="grid"><div class="card"><div class="num">${st.inh}</div><div class="lbl">🚫 عدد INH</div></div><div class="card"><div class="num">${st.zero}</div><div class="lbl">صفر استهلاك</div></div><div class="card"><div class="num">${st.high}</div><div class="lbl">استهلاك ضخم</div></div><div class="card"><div class="num">${st.leak}</div><div class="lbl">💧 تسربات FC</div></div><div class="card"><div class="num">${st.problems}</div><div class="lbl">⚠️ عدادات ذات مشاكل</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">📍 مواقع مسجلة</div></div><div class="card"><div class="num">${st.progress}%</div><div class="lbl">📊 نسبة الإنجاز</div></div></div><h2>🚶 نشاط العامل التقديري</h2><div class="meta">تقدير تقريبي وليس دقيقاً طبياً، مبني على مواقع GPS المسجّلة فقط.</div><div class="grid"><div class="card"><div class="num">${st.activity.distanceKm.toFixed(1)}</div><div class="lbl">كم مقطوعة تقريباً</div></div><div class="card"><div class="num">${Math.round(st.activity.minutes)}</div><div class="lbl">دقيقة مشي تقريباً</div></div><div class="card"><div class="num">${st.activity.calories!=null?st.activity.calories:'—'}</div><div class="lbl">سعرة تقريبية محروقة</div></div></div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(hasReading(m)?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(hasReading).sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div>
+</style></head><body><div class="report"><div class="actions"><button onclick="tryPrintReport()">🖨️ طباعة</button><button onclick="tryCloseReport()">✕ إغلاق</button></div><h1>📋 تقرير الجولة ${route}</h1><div class="meta">العامل: ${worker||'—'}<br>التاريخ: ${escH(date)}<br>السعر: ${escH(settings.price)} ${currency}</div><h2>ملخص الجولة</h2><div class="grid"><div class="card"><div class="num">${st.total}</div><div class="lbl">إجمالي العدادات</div></div><div class="card"><div class="num">${st.readCount}</div><div class="lbl">مرفوعة</div></div><div class="card"><div class="num">${st.pending}</div><div class="lbl">معلّقة</div></div><div class="card"><div class="num">${st.anom}</div><div class="lbl">إشارات</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">مواقع GPS</div></div><div class="card"><div class="num">${st.photos}</div><div class="lbl">صور</div></div><div class="card"><div class="num">${st.consumption}</div><div class="lbl">الاستهلاك م³</div></div><div class="card"><div class="num">${st.amount.toFixed(2)} ${currency}</div><div class="lbl">إجمالي المبلغ</div></div></div><div class="bar"><span></span></div><div class="meta" style="margin-top:5px">نسبة التقدم: ${st.progress}%</div><h2>🎯 لوحة إحصائيات الجولة</h2><div class="grid"><div class="card"><div class="num">${st.inh}</div><div class="lbl">🚫 عدد INH</div></div><div class="card"><div class="num">${st.zero}</div><div class="lbl">صفر استهلاك</div></div><div class="card"><div class="num">${st.high}</div><div class="lbl">استهلاك ضخم</div></div><div class="card"><div class="num">${st.leak}</div><div class="lbl">💧 تسربات FC</div></div><div class="card"><div class="num">${st.problems}</div><div class="lbl">⚠️ عدادات ذات مشاكل</div></div><div class="card"><div class="num">${st.gps}</div><div class="lbl">📍 مواقع مسجلة</div></div><div class="card"><div class="num">${st.progress}%</div><div class="lbl">📊 نسبة الإنجاز</div></div></div><h2>🚶 نشاط العامل التقديري</h2><div class="meta">تقدير تقريبي وليس دقيقاً طبياً، مبني على مواقع GPS المسجّلة فقط.</div><div class="grid"><div class="card"><div class="num">${st.activity.distanceKm.toFixed(1)}</div><div class="lbl">كم مقطوعة تقريباً</div></div><div class="card"><div class="num">${Math.round(st.activity.minutes)}</div><div class="lbl">دقيقة مشي تقريباً</div></div><div class="card"><div class="num">${st.activity.calories!=null?st.activity.calories:'—'}</div><div class="lbl">سعرة تقريبية محروقة</div></div></div><h2>📈 تطور الإنجاز</h2><div class="meta">الإنجاز المسجل يومياً حسب تاريخ حفظ القراءة.</div><table><thead><tr><th>اليوم</th><th>عدد القراءات</th></tr></thead><tbody>${Object.entries(meters.filter(m=>m.savedAt).reduce((o,m)=>{const k=new Date(m.savedAt).toLocaleDateString('ar-DZ');o[k]=(o[k]||0)+(hasReading(m)?1:0);return o},{})).map(([d,n])=>`<tr><td>${d}</td><td>${n}</td></tr>`).join('')}</tbody></table><h2>🏆 أعلى استهلاك</h2><table><thead><tr><th>الزبون</th><th>الاستهلاك</th></tr></thead><tbody>${meters.filter(hasReading).sort((a,b)=>(b.consumption||0)-(a.consumption||0)).slice(0,10).map(m=>`<tr><td>${escH(m.name)} (${escH(m.meter)})</td><td>${m.consumption||0} م³</td></tr>`).join('')}</tbody></table><h2>تفاصيل الجولة</h2><table><thead><tr><th>#</th><th>رمز الزبون</th><th>الاسم</th><th>الرقم التسلسلي</th><th>العنوان</th><th>القراءة</th><th>الاستهلاك</th><th>الحالة</th><th>الموقع</th><th>التوقيع</th></tr></thead><tbody>${rows}</tbody></table></div>
 <script>
 function tryPrintReport(){
   try{ window.print(); }
@@ -3103,7 +3113,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=38');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=40');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -3207,7 +3217,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=38').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=40').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
@@ -3233,6 +3243,66 @@ function showUpdateBanner(worker){
     worker.postMessage({type:'SKIP_WAITING'});
     bar.remove();
   };
+}
+
+/* ====== INSTALL PROMPT (Add to Home Screen) ======
+   Chrome fires beforeinstallprompt only when the page already qualifies as an
+   installable PWA (valid manifest + service worker) — this just surfaces that
+   built-in capability as a visible button instead of making people dig through
+   the browser's ⋮ menu to find "Install app" themselves. The top-bar button is
+   permanent (shown on every visit while not installed yet), unlike the one-off
+   banner below which only appears when the browser fires the event and can be
+   dismissed. */
+let deferredInstallPrompt = null;
+function updateTopInstallBtn(){
+  const btn=document.getElementById('topInstallBtn');
+  if(!btn) return;
+  const alreadyInstalled = window.matchMedia('(display-mode: standalone)').matches;
+  btn.style.display = alreadyInstalled ? 'none' : 'flex';
+}
+async function triggerInstall(){
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    return;
+  }
+  // The browser hasn't (yet, or won't this session) fired beforeinstallprompt,
+  // so there's no native install dialog to trigger programmatically — guide
+  // the person through the manual path instead of doing nothing silently.
+  alert('لتثبيت التطبيق يدوياً:\n1) اضغط ⋮ (القائمة) أعلى يمين المتصفح\n2) اختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية"');
+}
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner();
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const bar = document.getElementById('installBar');
+  if(bar) bar.remove();
+  updateTopInstallBtn();
+});
+document.addEventListener('DOMContentLoaded', updateTopInstallBtn);
+updateTopInstallBtn(); // this script runs at the end of the page, after DOMContentLoaded has very likely already fired — call it directly too so the button's initial state isn't left waiting on an event that already passed
+function showInstallBanner(){
+  if(document.getElementById('installBar')) return;
+  // Already running as an installed app (opened from the home-screen icon) —
+  // nothing to offer.
+  if(window.matchMedia('(display-mode: standalone)').matches) return;
+  const bar = document.createElement('div');
+  bar.id = 'installBar';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#1565C0;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;z-index:99998;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,.2);';
+  bar.innerHTML = '<span>📲 ثبّت التطبيق على هاتفك لفتحه بسرعة بدون متصفح</span><div style="display:flex;gap:6px;flex-shrink:0;"><button id="installBtn" style="background:#fff;color:#1565C0;border:none;padding:8px 14px;border-radius:8px;font-weight:700;font-size:12.5px;white-space:nowrap;cursor:pointer;">تثبيت</button><button id="installDismissBtn" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);padding:8px 10px;border-radius:8px;font-size:12.5px;cursor:pointer;">✕</button></div>';
+  document.body.appendChild(bar);
+  document.getElementById('installBtn').onclick = async () => {
+    if(!deferredInstallPrompt){ bar.remove(); return; }
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    bar.remove();
+  };
+  document.getElementById('installDismissBtn').onclick = () => { bar.remove(); };
 }
 </script>
 </body>
