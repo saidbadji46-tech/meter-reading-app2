@@ -475,15 +475,6 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
         <div class="route-stat-box"><span class="val val-total" id="rsGps">0</span><span class="lbl">📍 مواقع مسجلة</span></div>
         <div class="route-stat-box"><span class="val val-done" id="rsProgressNum">0%</span><span class="lbl">📊 نسبة الإنجاز</span></div>
       </div>
-      <div style="margin:10px 14px 12px;padding:10px 12px;background:var(--surface);border-radius:10px;border:1px solid var(--line);">
-        <div style="font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:6px;">🚶 نشاطي في هذه الجولة <span style="font-weight:600;opacity:.75;">(تقديري وليس دقيقاً طبياً)</span></div>
-        <div style="display:flex;gap:8px;">
-          <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:8px 4px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:800;color:var(--blue);display:block;" id="actDistance">0</span><span style="font-size:10px;color:var(--muted);">كم مقطوعة</span></div>
-          <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:8px 4px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:800;color:var(--blue);display:block;" id="actMinutes">0</span><span style="font-size:10px;color:var(--muted);">دقيقة مشي تقريباً</span></div>
-          <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:8px 4px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:800;color:var(--blue);display:block;" id="actCalories">—</span><span style="font-size:10px;color:var(--muted);">سعرة تقريبية</span></div>
-        </div>
-        <div id="actTip" style="font-size:10.5px;color:var(--muted);margin-top:7px;line-height:1.6;"></div>
-      </div>
     </div>
   </div>
 
@@ -495,6 +486,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
     <button class="tab-btn" data-tab="tab-stats" onclick="switchTab('tab-stats',this)">📊 لوحة التحكم</button>
     <button class="tab-btn" data-tab="tab-archive" onclick="switchTab('tab-archive',this)">🗂️ الجولات السابقة</button>
     <button class="tab-btn" data-tab="tab-map" onclick="switchTab('tab-map',this)">📍 المواقع</button>
+    <button class="tab-btn" data-tab="tab-activity" onclick="switchTab('tab-activity',this)">🚶 نشاطي</button>
   </div>
 
   <main id="mainContent">
@@ -585,7 +577,26 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
       <div id="mapList"></div>
     </div>
 
-    <!-- DETAIL (RELEVÉ) -->
+    <!-- ACTIVITY TAB — نشاطي -->
+    <div id="tab-activity" class="view">
+      <div style="margin:14px;padding:14px;background:#fff;border-radius:12px;border:1px solid var(--line);">
+        <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px;">🚶 نشاطي في هذه الجولة</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">تقدير تقريبي وليس دقيقاً طبياً — مبني على مواقع GPS المسجّلة فقط، وليس مساراً حقيقياً كاملاً.</div>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;text-align:center;background:var(--surface);border-radius:10px;padding:12px 4px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:800;color:var(--blue);display:block;" id="actDistance">0</span><span style="font-size:11px;color:var(--muted);">كم مقطوعة</span></div>
+          <div style="flex:1;text-align:center;background:var(--surface);border-radius:10px;padding:12px 4px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:800;color:var(--blue);display:block;" id="actMinutes">0</span><span style="font-size:11px;color:var(--muted);">دقيقة مشي تقريباً</span></div>
+          <div style="flex:1;text-align:center;background:var(--surface);border-radius:10px;padding:12px 4px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:800;color:var(--blue);display:block;" id="actCalories">—</span><span style="font-size:11px;color:var(--muted);">سعرة تقريبية</span></div>
+        </div>
+        <div id="actTip" style="font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.7;"></div>
+      </div>
+
+      <div style="margin:0 14px 14px;padding:14px;background:#fff;border-radius:12px;border:1px solid var(--line);">
+        <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px;">🍽️ أفكار عامة لأكلات الاسترجاع (أسبوعياً)</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">أفكار عامة فقط وليست خطة غذائية أو نصيحة طبية مخصصة — عدّلها حسب ذوقك واحتياجك.</div>
+        <div id="mealPlanList"></div>
+      </div>
+    </div>
+
     <div id="view-releve" class="view">
       <div class="form-header">
         <div class="sub-num">
@@ -1103,6 +1114,7 @@ function switchTab(tabId, btn){
   btn.classList.add('active');
   navSwitchVisible();
   if(tabId === 'tab-map'){ renderMapList(); renderRouteMap(); }
+  else if(tabId === 'tab-activity'){ renderActivityEstimate(); renderMealPlan(); }
   else renderAll();
 }
 
@@ -1274,6 +1286,26 @@ function renderActivityEstimate(){
       ? 'أضف وزنك في "إعدادات الحساب" لتقدير السعرات المحروقة. تذكير عام: خذ استراحة قصيرة كل ساعة واشرب ماءً بانتظام.'
       : 'تذكير عام: خذ استراحة قصيرة كل ساعة، اشرب ماءً بانتظام، وتناول وجبة متوازنة بعد الجولة لاسترجاع مجهودك.';
   }
+}
+function renderMealPlan(){
+  const el = document.getElementById('mealPlanList');
+  if(!el) return;
+  // General food-name ideas only — no quantities, no calorie counts, no
+  // medical or nutrition-plan claims. Just simple, varied suggestions the
+  // person can freely adapt.
+  const days = [
+    {d:'السبت', items:'بيض مسلوق + قطعة خبز أسمر + موزة'},
+    {d:'الأحد', items:'زبادي + تفاحة + حفنة لوز أو جوز'},
+    {d:'الاثنين', items:'تونة أو دجاج مشوي + خضار طازجة'},
+    {d:'الثلاثاء', items:'عدس أو شوربة خضار + تمرات'},
+    {d:'الأربعاء', items:'بيض + خبز أسمر + عصير برتقال طبيعي'},
+    {d:'الخميس', items:'زبادي بالفواكه + حفنة مكسرات'},
+    {d:'الجمعة', items:'سمك مشوي أو دجاج + خضار + فاكهة موسمية'},
+  ];
+  el.innerHTML = days.map(x=>`<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);">
+    <span style="font-weight:800;font-size:12.5px;color:var(--blue);width:62px;flex-shrink:0;">${x.d}</span>
+    <span style="font-size:12.5px;color:var(--ink);">${x.items}</span>
+  </div>`).join('');
 }
 function renderRouteStatsPanel(){
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
@@ -3071,7 +3103,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=37');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=38');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -3175,7 +3207,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=37').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=38').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
