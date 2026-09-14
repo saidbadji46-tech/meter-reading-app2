@@ -488,6 +488,7 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
     <button class="tab-btn" data-tab="tab-archive" onclick="switchTab('tab-archive',this)">🗂️ الجولات السابقة</button>
     <button class="tab-btn" data-tab="tab-map" onclick="switchTab('tab-map',this)">📍 المواقع</button>
     <button class="tab-btn" data-tab="tab-activity" onclick="switchTab('tab-activity',this)">🚶 نشاطي</button>
+    <button class="tab-btn" data-tab="tab-weather" onclick="switchTab('tab-weather',this)">🌤️ الأحوال الجوية</button>
   </div>
 
   <main id="mainContent">
@@ -595,6 +596,19 @@ canvas.dashboard-chart{width:100%;height:190px;display:block}
         <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px;">🍽️ أفكار عامة لأكلات الاسترجاع (أسبوعياً)</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">أفكار عامة فقط وليست خطة غذائية أو نصيحة طبية مخصصة — عدّلها حسب ذوقك واحتياجك.</div>
         <div id="mealPlanList"></div>
+      </div>
+    </div>
+
+    <!-- WEATHER TAB — الأحوال الجوية -->
+    <div id="tab-weather" class="view">
+      <div style="margin:14px;padding:14px;background:#fff;border-radius:12px;border:1px solid var(--line);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <div style="font-size:15px;font-weight:800;color:var(--text);">🌤️ الأحوال الجوية — 7 أيام</div>
+          <button class="btn-ghost" style="padding:6px 12px;font-size:11.5px;" onclick="loadWeather(true)">🔄 تحديث</button>
+        </div>
+        <div id="weatherLocLabel" style="font-size:11px;color:var(--muted);margin-bottom:10px;"></div>
+        <div id="weatherStatus" style="font-size:12.5px;color:var(--muted);padding:10px 0;">جارٍ تحميل بيانات الطقس...</div>
+        <div id="weatherList"></div>
       </div>
     </div>
 
@@ -1116,6 +1130,7 @@ function switchTab(tabId, btn){
   navSwitchVisible();
   if(tabId === 'tab-map'){ renderMapList(); renderRouteMap(); }
   else if(tabId === 'tab-activity'){ renderActivityEstimate(); renderMealPlan(); }
+  else if(tabId === 'tab-weather'){ loadWeather(); }
   else renderAll();
 }
 
@@ -1154,7 +1169,7 @@ function renderAll(){
         || (m.address||'').toLowerCase().includes(q)
         || (m.meterSerial||'').toLowerCase().replace(/\s+/g,'').includes(qFlat);
   };
-  const done=meters.filter(m=>m.status==='done'&&matchQ(m));
+  const done=meters.filter(m=>hasReading(m)&&matchQ(m));
   const pending=meters.filter(m=>m.status!=='done'&&m.status!=='anom'&&matchQ(m));
   const anom=meters.filter(m=>m.status==='anom'&&matchQ(m));
   const filtered=meters.filter(matchQ);
@@ -1306,6 +1321,82 @@ function renderMealPlan(){
   el.innerHTML = days.map(x=>`<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);">
     <span style="font-weight:800;font-size:12.5px;color:var(--blue);width:62px;flex-shrink:0;">${x.d}</span>
     <span style="font-size:12.5px;color:var(--ink);">${x.items}</span>
+  </div>`).join('');
+}
+
+/* ====== WEATHER (7-day forecast via Open-Meteo, free, no API key needed) ====== */
+const WMO_MAP = {
+  0:{e:'☀️',t:'صافٍ'}, 1:{e:'🌤️',t:'صافٍ غالباً'}, 2:{e:'⛅',t:'غائم جزئياً'}, 3:{e:'☁️',t:'غائم'},
+  45:{e:'🌫️',t:'ضباب'}, 48:{e:'🌫️',t:'ضباب متجمد'},
+  51:{e:'🌦️',t:'رذاذ خفيف'}, 53:{e:'🌦️',t:'رذاذ متوسط'}, 55:{e:'🌦️',t:'رذاذ كثيف'},
+  61:{e:'🌧️',t:'مطر خفيف'}, 63:{e:'🌧️',t:'مطر متوسط'}, 65:{e:'🌧️',t:'مطر غزير'},
+  71:{e:'🌨️',t:'ثلج خفيف'}, 73:{e:'🌨️',t:'ثلج متوسط'}, 75:{e:'🌨️',t:'ثلج غزير'},
+  80:{e:'🌦️',t:'زخات مطر خفيفة'}, 81:{e:'🌦️',t:'زخات مطر متوسطة'}, 82:{e:'⛈️',t:'زخات مطر غزيرة'},
+  95:{e:'⛈️',t:'عاصفة رعدية'}, 96:{e:'⛈️',t:'عاصفة رعدية + برد'}, 99:{e:'⛈️',t:'عاصفة رعدية شديدة'}
+};
+function wmoInfo(code){ return WMO_MAP[code] || {e:'🌡️',t:'غير معروف'}; }
+let weatherCache=null, weatherCacheAt=0;
+function loadWeather(force){
+  const statusEl=document.getElementById('weatherStatus');
+  const listEl=document.getElementById('weatherList');
+  const locEl=document.getElementById('weatherLocLabel');
+  if(!force && weatherCache && (Date.now()-weatherCacheAt < 15*60*1000)){
+    renderWeatherList(weatherCache.daily);
+    if(locEl) locEl.textContent='📍 '+weatherCache.locLabel;
+    return;
+  }
+  if(statusEl){ statusEl.style.display='block'; statusEl.textContent='جارٍ تحديد موقعك...'; }
+  if(listEl) listEl.innerHTML='';
+  const fallback = {lat:35.2977, lng:-1.1412, label:'عين تموشنت (موقع افتراضي)'};
+  function fetchAndRender(lat,lng,label){
+    if(statusEl) statusEl.textContent='جارٍ تحميل بيانات الطقس...';
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weathercode,weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max&timezone=auto&forecast_days=7`)
+      .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(data=>{
+        weatherCache = {daily:data.daily, locLabel:label};
+        weatherCacheAt = Date.now();
+        renderWeatherList(data.daily);
+      })
+      .catch(e=>{
+        console.error('weather fetch failed', e);
+        if(statusEl){ statusEl.style.display='block'; statusEl.textContent='❌ تعذر تحميل بيانات الطقس. تحقق من الاتصال بالإنترنت.'; }
+      });
+  }
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos=>{ if(locEl) locEl.textContent='📍 حسب موقعك الحالي'; fetchAndRender(pos.coords.latitude, pos.coords.longitude, 'موقعك الحالي'); },
+      ()=>{ if(locEl) locEl.textContent='📍 '+fallback.label+' — فعّل صلاحية الموقع لعرض طقس موقعك الحالي'; fetchAndRender(fallback.lat, fallback.lng, fallback.label); },
+      {enableHighAccuracy:false, timeout:8000, maximumAge:600000}
+    );
+  }else{
+    if(locEl) locEl.textContent='📍 '+fallback.label;
+    fetchAndRender(fallback.lat, fallback.lng, fallback.label);
+  }
+}
+function renderWeatherList(daily){
+  const statusEl=document.getElementById('weatherStatus');
+  const listEl=document.getElementById('weatherList');
+  if(!daily || !listEl) return;
+  if(statusEl) statusEl.style.display='none';
+  const days = daily.time.map((dateStr,i)=>{
+    const d = new Date(dateStr+'T12:00:00');
+    const dayName = d.toLocaleDateString('ar-DZ',{weekday:'long'});
+    const dateLabel = d.toLocaleDateString('ar-DZ',{day:'2-digit',month:'2-digit'});
+    const info = wmoInfo(daily.weather_code ? daily.weather_code[i] : daily.weathercode[i]);
+    return {dayName, dateLabel, info,
+      max:Math.round(daily.temperature_2m_max[i]), min:Math.round(daily.temperature_2m_min[i]),
+      rain:daily.precipitation_probability_max[i], wind:Math.round(daily.windspeed_10m_max[i])};
+  });
+  listEl.innerHTML = days.map(x=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 4px;border-top:1px solid var(--line);">
+    <span style="font-size:26px;flex-shrink:0;">${x.info.e}</span>
+    <div style="flex:1;">
+      <div style="font-size:13px;font-weight:800;color:var(--ink);">${x.dayName} <span style="font-weight:600;color:var(--muted);font-size:11px;">${x.dateLabel}</span></div>
+      <div style="font-size:11px;color:var(--muted);">${x.info.t} · 💧${x.rain}% · 💨${x.wind}كم/س</div>
+    </div>
+    <div style="text-align:left;flex-shrink:0;white-space:nowrap;">
+      <span style="font-family:'IBM Plex Mono',monospace;font-weight:800;color:var(--blue);font-size:15px;">${x.max}°</span>
+      <span style="font-family:'IBM Plex Mono',monospace;color:var(--muted);font-size:12px;"> / ${x.min}°</span>
+    </div>
   </div>`).join('');
 }
 function renderRouteStatsPanel(){
@@ -3113,7 +3204,7 @@ async function ensureJSZip(){
 if(typeof window.JSZip==='function')return true;
 const local=new URL('vendor/jszip.min.js',document.baseURI).href;
 // 1) local vendor file (with cache-bust so an updated file isn't blocked by an old SW/browser cache)
-try{await loadScriptOnce(local+'?v=40');}catch(e){console.warn('JSZip: local script tag failed',e);}
+try{await loadScriptOnce(local+'?v=41');}catch(e){console.warn('JSZip: local script tag failed',e);}
 if(typeof window.JSZip==='function')return true;
 // 2) fetch + eval the local file directly (bypasses <script> tag network quirks)
 try{const r=await fetch(local,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);(0,eval)(await r.text());}catch(e2){console.warn('JSZip: local fetch+eval failed',e2);}
@@ -3217,7 +3308,7 @@ if ('serviceWorker' in navigator) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=40').then(reg => {
+    navigator.serviceWorker.register('sw.js?v=41').then(reg => {
       reg.update().catch(()=>{});
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
